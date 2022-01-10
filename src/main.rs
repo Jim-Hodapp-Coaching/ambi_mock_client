@@ -29,6 +29,7 @@ impl Reading {
     }
 }
 
+#[derive(Debug, PartialEq)]
 enum AirPurity {
     Dangerous,
     High,
@@ -37,14 +38,13 @@ enum AirPurity {
 }
 
 impl AirPurity {
-    fn from_value(value: u16) -> String {
-        let result = match value {
-            0..=50 => AirPurity::FreshAir,
-            51..=100 => AirPurity::Low,
-            101..=150 => AirPurity::High,
-            151.. => AirPurity::Dangerous,
+    fn from_value(value: u16) -> AirPurity {
+        match value {
+            0..=50 => return AirPurity::FreshAir,
+            51..=100 => return AirPurity::Low,
+            101..=150 => return AirPurity::High,
+            151.. => return AirPurity::Dangerous,
         };
-       result.to_string()
     }
 }
 
@@ -85,7 +85,7 @@ fn random_gen_dust_concentration() -> String {
 
 fn main() {
    let dust_concentration = random_gen_dust_concentration();
-   let air_purity = AirPurity::from_value(dust_concentration.parse::<u16>().unwrap());
+   let air_purity = AirPurity::from_value(dust_concentration.parse::<u16>().unwrap()).to_string();
    let reading = Reading::new(
        random_gen_tempurature(),
        random_gen_humidity(),
@@ -142,9 +142,9 @@ mod tests {
         let high = rng.gen_range(101..=150);
         let dangerous = rng.gen_range(151..u16::MAX);
 
-        assert_eq!(AirPurity::from_value(fresh_air), "FRESH_AIR");
-        assert_eq!(AirPurity::from_value(low), "LOW");
-        assert_eq!(AirPurity::from_value(high), "HIGH");
-        assert_eq!(AirPurity::from_value(dangerous), "DANGEROUS");
+        assert_eq!(AirPurity::from_value(fresh_air), AirPurity::FreshAir);
+        assert_eq!(AirPurity::from_value(low), AirPurity::Low);
+        assert_eq!(AirPurity::from_value(high), AirPurity::High);
+        assert_eq!(AirPurity::from_value(dangerous), AirPurity::Dangerous);
     }
 }
