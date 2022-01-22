@@ -1,4 +1,5 @@
 use rand::{thread_rng, Rng};
+use reqwest::blocking::Client;
 use serde::{Serialize, Deserialize};
 use std::fmt;
 
@@ -95,8 +96,16 @@ fn main() {
    );
 
    let json = serde_json::to_string(&reading).unwrap();
+   let url = "http://localhost:4000/api/readings/add";
 
-   println!("{}", json);
+   println!("Sending POST request to {} as JSON: {}", url, json);
+
+   let client = Client::new();
+   let res = client.post(url)
+    .body(json)
+    .send();
+
+   println!("Response: {:#?}", res);
 }
 
 #[cfg(test)]
