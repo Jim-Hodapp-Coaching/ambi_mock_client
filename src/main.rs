@@ -96,12 +96,12 @@ fn main() {
    );
 
    let json = serde_json::to_string(&reading).unwrap();
-   let url = "http://localhost:4000/api/readings/add";
+   const URL: &str = "http://localhost:4000/api/readings/add";
 
-   println!("Sending POST request to {} as JSON: {}", url, json);
+   println!("Sending POST request to {} as JSON: {}", URL, json);
 
    let client = Client::new();
-   let res = client.post(url)
+   let res = client.post(URL)
     .body(json)
     .send();
 
