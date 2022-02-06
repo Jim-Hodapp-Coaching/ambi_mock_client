@@ -21,11 +21,11 @@ impl Reading {
         air_purity: String
     ) -> Reading {
         Reading {
-            temperature: temperature,
-            humidity: humidity,
-            pressure: pressure,
-            dust_concentration: dust_concentration,
-            air_purity: air_purity
+            temperature,
+            humidity,
+            pressure,
+            dust_concentration,
+            air_purity
         }
     }
 }
