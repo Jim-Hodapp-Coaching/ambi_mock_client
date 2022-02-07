@@ -1,5 +1,6 @@
 use rand::{thread_rng, Rng};
 use reqwest::blocking::Client;
+use reqwest::header::CONTENT_TYPE;
 use serde::{Serialize, Deserialize};
 use std::fmt;
 
@@ -101,7 +102,9 @@ fn main() {
    println!("Sending POST request to {} as JSON: {}", URL, json);
 
    let client = Client::new();
-   let res = client.post(URL)
+   let res = client
+    .post(URL)
+    .header(CONTENT_TYPE, "application/json")
     .body(json)
     .send();
 
