@@ -55,10 +55,10 @@ impl AirPurity {
 impl fmt::Display for AirPurity {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            AirPurity::Low => write!(f, "LOW"),
-            AirPurity::High => write!(f, "HIGH"),
-            AirPurity::Dangerous => write!(f, "DANGEROUS"),
-            AirPurity::FreshAir => write!(f, "FRESH_AIR")
+            AirPurity::Low => write!(f, "Fresh Air"),
+            AirPurity::High => write!(f, "Low Pollution"),
+            AirPurity::Dangerous => write!(f, "High Pollution"),
+            AirPurity::FreshAir => write!(f, "Dangerous Pollution")
         }
     }
 }
