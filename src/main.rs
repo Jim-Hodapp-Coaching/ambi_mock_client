@@ -1,11 +1,12 @@
 use rand::{thread_rng, Rng};
 use reqwest::blocking::Client;
+use reqwest::header::CONTENT_TYPE;
 use serde::{Serialize, Deserialize};
 use std::fmt;
 
 #[derive(Serialize, Deserialize)]
 struct Reading {
-  tempurature: String,
+  temperature: String,
   humidity: String,
   pressure: String,
   dust_concentration: String,
@@ -14,18 +15,18 @@ struct Reading {
 
 impl Reading {
     fn new(
-        tempurature: String,
+        temperature: String,
         humidity: String,
         pressure: String,
         dust_concentration: String,
         air_purity: String
     ) -> Reading {
         Reading {
-            tempurature: tempurature,
-            humidity: humidity,
-            pressure: pressure,
-            dust_concentration: dust_concentration,
-            air_purity: air_purity
+            temperature,
+            humidity,
+            pressure,
+            dust_concentration,
+            air_purity
         }
     }
 }
@@ -68,7 +69,7 @@ fn random_gen_humidity() -> String {
     format!("{:.1}", value)
 }
 
-fn random_gen_tempurature() -> String {
+fn random_gen_temperature() -> String {
     let mut rng = thread_rng();
     let value = rng.gen_range(15.0..=35.0);
     format!("{:.1}", value)
@@ -88,7 +89,7 @@ fn main() {
    let dust_concentration = random_gen_dust_concentration();
    let air_purity = AirPurity::from_value(dust_concentration.parse::<u16>().unwrap()).to_string();
    let reading = Reading::new(
-       random_gen_tempurature(),
+       random_gen_temperature(),
        random_gen_humidity(),
        random_gen_pressure(),
        dust_concentration,
@@ -101,7 +102,9 @@ fn main() {
    println!("Sending POST request to {} as JSON: {}", URL, json);
 
    let client = Client::new();
-   let res = client.post(URL)
+   let res = client
+    .post(URL)
+    .header(CONTENT_TYPE, "application/json")
     .body(json)
     .send();
 
@@ -122,8 +125,8 @@ mod tests {
     }
     
     #[test]
-    fn random_gen_tempurature_returns_correctly_formatted_humidity_data() {
-      let result = random_gen_tempurature();
+    fn random_gen_temperature_returns_correctly_formatted_humidity_data() {
+      let result = random_gen_temperature();
       let regex = Regex::new(r"\d{1,2}.\d{1}").unwrap();
 
       assert!(regex.is_match(&result));
