@@ -1,7 +1,6 @@
 # ambi_mock_client
 
-## NOTE
-This repo is now deprecated as it's moved into a broader GitHub organization [now found here](https://github.com/Jim-Hodapp-Coaching/ambi_mock_client).
+Provides a mock Ambi client that emulates real sensor hardware such as an Edge client.
 
 ## Usage
 
