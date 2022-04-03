@@ -19,10 +19,5 @@ fn main() {
     // Parses the provided command line interface arguments and flags
     let cli = ambi_mock_client::Cli::parse();
 
-    match cli.debug {
-        true => println!("Debug mode is now *on*"),
-        false => println!("Debug mode is now *off*")
-    }
-    
     ambi_mock_client::run(&cli);
 }

@@ -29,7 +29,6 @@ pub struct Cli {
     pub debug: bool,
 }
 
-
 #[derive(Serialize, Deserialize)]
 struct Reading {
   temperature: String,
