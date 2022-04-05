@@ -136,7 +136,30 @@ pub fn run(cli: &Cli) {
         .body(json)
         .send();
 
-    println!("Response: {:#?}", res);
+    match res {
+        Ok(response) => {
+            match cli.debug {
+                true => println!("Response from Ambi backend: {:#?}", response),
+                false => println!("Response from Ambi backend: {:?}", response.status().as_str())
+            }
+        }
+        Err(e) => {
+            match cli.debug {
+                // Print out the entire reqwest::Error for verbose debugging
+                true => eprintln!("Response error from Ambi backend: {:?}", e),
+                // Keep the error reports more succinct
+                false => {
+                    if e.is_request() {
+                        eprintln!("Response error from Ambi backend: request error");
+                    } else if e.is_timeout() {
+                        eprintln!("Response error from Ambi backend: request timed out");
+                    } else {
+                        eprintln!("Response error from Ambi backend: specific error type unknown");
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
