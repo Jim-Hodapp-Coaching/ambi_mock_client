@@ -15,6 +15,7 @@ use reqwest::header::CONTENT_TYPE;
 use serde::{Serialize, Deserialize};
 use std::fmt;
 use clap::{Parser};
+use std::thread::{spawn, JoinHandle};
 
 /// Defines the Ambi Mock Client command line interface as a struct
 #[derive(Parser, Debug)]
@@ -27,6 +28,10 @@ pub struct Cli {
     /// Turns verbose console debug output on
     #[clap(short, long)]
     pub debug: bool,
+
+    // Make int number of concurrent requests
+    #[clap(short, long, default_value_t = 1)]
+    pub int: u16
 }
 
 #[derive(Serialize, Deserialize)]
@@ -110,9 +115,7 @@ fn random_gen_dust_concentration() -> String {
     rng.gen_range(0..=1000).to_string()
 }
 
-pub fn run(cli: &Cli) {
-    println!("\r\ncli: {:?}\r\n", cli);
-
+fn send_request(url: &str, client: Client, debug: bool) {
     let dust_concentration = random_gen_dust_concentration();
     let air_purity = AirPurity::from_value(dust_concentration.parse::<u16>().unwrap()).to_string();
     let reading = Reading::new(
@@ -120,30 +123,27 @@ pub fn run(cli: &Cli) {
         random_gen_humidity(),
         random_gen_pressure(),
         dust_concentration,
-        air_purity
+        air_purity,
     );
 
     let json = serde_json::to_string(&reading).unwrap();
-    const URL: &str = "http://localhost:4000/api/readings/add";
-
-    println!("Sending POST request to {} as JSON: {}", URL, json);
-
-    let client = Client::new();
+    println!("Sending POST request to {} as JSON: {}", url, json);
     let res = client
-        .post(URL)
+        .post(url)
         .header(CONTENT_TYPE, "application/json")
         .body(json)
         .send();
 
     match res {
-        Ok(response) => {
-            match cli.debug {
-                true => println!("Response from Ambi backend: {:#?}", response),
-                false => println!("Response from Ambi backend: {:?}", response.status().as_str())
-            }
-        }
+        Ok(response) => match debug {
+            true => println!("Response from Ambi backend: {:#?}", response),
+            false => println!(
+                "Response from Ambi backend: {:?}",
+                response.status().as_str()
+            ),
+        },
         Err(e) => {
-            match cli.debug {
+            match debug {
                 // Print out the entire reqwest::Error for verbose debugging
                 true => eprintln!("Response error from Ambi backend: {:?}", e),
                 // Keep the error reports more succinct
@@ -158,6 +158,23 @@ pub fn run(cli: &Cli) {
                 }
             }
         }
+    }
+}
+
+pub fn run(cli: &Cli) {
+    println!("\r\ncli: {:?}\r\n", cli);
+
+    const URL: &str = "http://localhost:4000/api/readings/add";
+    let mut handlers: Vec<JoinHandle<()>> = vec![];
+    let debug: bool = cli.debug;
+    for _ in 0..cli.int {
+        let handler = spawn(move || send_request(URL, Client::new(), debug));
+
+        handlers.push(handler);
+    }
+
+    for handler in handlers {
+        handler.join().unwrap();
     }
 }
 
