@@ -10,12 +10,12 @@
 //! 
 
 use rand::{thread_rng, Rng};
-use reqwest::blocking::Client;
+use reqwest::blocking::{Client, Response};
 use reqwest::header::CONTENT_TYPE;
 use serde::{Serialize, Deserialize};
 use std::fmt;
 use clap::{Parser};
-use std::thread::{spawn, JoinHandle};
+use std::thread::{spawn, JoinHandle, ThreadId};
 
 /// Defines the Ambi Mock Client command line interface as a struct
 #[derive(Parser, Debug)]
@@ -57,6 +57,74 @@ impl Reading {
             pressure,
             dust_concentration,
             air_purity
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Output {
+    description: String,
+    error: Option<reqwest::Error>,
+    data: Option<Response>,
+    thread_id: ThreadId,
+    debug: bool
+  }
+
+impl Output {
+    pub fn new(
+        description: String,
+        error: Option<reqwest::Error>,
+        data: Option<Response>,
+        thread_id: ThreadId,
+        debug: bool
+    ) -> Output {
+        Output {
+            description,
+            error,
+            data,
+            thread_id,
+            debug
+        }
+    }
+
+    pub fn is_error(&self) -> bool {
+      self.error.is_some()
+    }
+
+    pub fn print(&self) {
+        if self.is_error() {
+           self.print_to_stderr()     
+        } else {
+          self.print_to_stdout()
+        }
+    }
+
+    fn print_to_stderr(&self) {
+      if self.debug {
+        eprintln!("{:#?}", self)
+      } else {
+        eprintln!("{}", self)
+      }
+    }
+
+    fn print_to_stdout(&self) {
+        if self.debug {
+          println!("{:#?}", self)
+        } else {
+          println!("{}", self)
+        }
+      }
+}
+
+impl fmt::Display for Output {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.is_error() {
+            let error = self.error.as_ref().unwrap();
+            write!(f, "Response error from Ambi. Status: {:?}, Thread ID: {:?}", error.status(), self.thread_id)
+        } else {
+            let response = self.data.as_ref().unwrap();
+            let status = response.status().as_u16();
+            write!(f, "Response from Ambi. Status: {}, Thread ID: {:?}", status, self.thread_id)
         }
     }
 }
@@ -115,7 +183,7 @@ fn random_gen_dust_concentration() -> String {
     rng.gen_range(0..=1000).to_string()
 }
 
-fn send_request(url: &str, client: Client, debug: bool) {
+fn send_request(url: &str, client: Client) -> reqwest::Result<Response> {
     let dust_concentration = random_gen_dust_concentration();
     let air_purity = AirPurity::from_value(dust_concentration.parse::<u16>().unwrap()).to_string();
     let reading = Reading::new(
@@ -128,37 +196,11 @@ fn send_request(url: &str, client: Client, debug: bool) {
 
     let json = serde_json::to_string(&reading).unwrap();
     println!("Sending POST request to {} as JSON: {}", url, json);
-    let res = client
+    client
         .post(url)
         .header(CONTENT_TYPE, "application/json")
         .body(json)
-        .send();
-
-    match res {
-        Ok(response) => match debug {
-            true => println!("Response from Ambi backend: {:#?}", response),
-            false => println!(
-                "Response from Ambi backend: {:?}",
-                response.status().as_str()
-            ),
-        },
-        Err(e) => {
-            match debug {
-                // Print out the entire reqwest::Error for verbose debugging
-                true => eprintln!("Response error from Ambi backend: {:?}", e),
-                // Keep the error reports more succinct
-                false => {
-                    if e.is_request() {
-                        eprintln!("Response error from Ambi backend: request error");
-                    } else if e.is_timeout() {
-                        eprintln!("Response error from Ambi backend: request timed out");
-                    } else {
-                        eprintln!("Response error from Ambi backend: specific error type unknown");
-                    }
-                }
-            }
-        }
-    }
+        .send()
 }
 
 pub fn run(cli: &Cli) {
@@ -168,7 +210,28 @@ pub fn run(cli: &Cli) {
     let mut handlers: Vec<JoinHandle<()>> = vec![];
     let debug: bool = cli.debug;
     for _ in 0..cli.int {
-        let handler = spawn(move || send_request(URL, Client::new(), debug));
+        let handler = spawn(move ||
+            match send_request(URL, Client::new()) {
+              Ok(response) => {
+                Output::new(
+                   String::from("Response from Ambi backend"),
+                   None,
+                   Some(response),
+                   std::thread::current().id(),
+                   debug   
+                ).print(); 
+              }
+              Err(error) => {
+                Output::new(
+                    String::from("Response error from Ambi backend"),
+                    Some(error),
+                    None,
+                    std::thread::current().id(),
+                    debug   
+                 ).print();
+              }
+            }
+        );
 
         handlers.push(handler);
     }
