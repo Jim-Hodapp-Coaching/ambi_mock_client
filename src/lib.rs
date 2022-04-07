@@ -29,7 +29,7 @@ pub struct Cli {
     #[clap(short, long)]
     pub debug: bool,
 
-    // Make int number of concurrent requests
+    /// Make <INT> number of concurrent requests
     #[clap(short, long, default_value_t = 1)]
     pub int: u16
 }
