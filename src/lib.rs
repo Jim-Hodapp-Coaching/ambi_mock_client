@@ -120,11 +120,11 @@ impl fmt::Display for Output {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.is_error() {
             let error = self.error.as_ref().unwrap();
-            write!(f, "Response error from Ambi. Status: {:?}, Thread ID: {:?}", error.status(), self.thread_id)
+            write!(f, "{} Status: {:?}, Thread ID: {:?}", self.description, error.status(), self.thread_id)
         } else {
             let response = self.data.as_ref().unwrap();
             let status = response.status().as_u16();
-            write!(f, "Response from Ambi. Status: {}, Thread ID: {:?}", status, self.thread_id)
+            write!(f, "{} Status: {}, Thread ID: {:?}",self.description, status, self.thread_id)
         }
     }
 }
@@ -214,7 +214,7 @@ pub fn run(cli: &Cli) {
             match send_request(URL, Client::new()) {
               Ok(response) => {
                 Output::new(
-                   String::from("Response from Ambi backend"),
+                   String::from("Response from Ambi backend."),
                    None,
                    Some(response),
                    std::thread::current().id(),
@@ -223,7 +223,7 @@ pub fn run(cli: &Cli) {
               }
               Err(error) => {
                 Output::new(
-                    String::from("Response error from Ambi backend"),
+                    String::from("Response error from Ambi backend."),
                     Some(error),
                     None,
                     std::thread::current().id(),
