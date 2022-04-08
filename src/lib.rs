@@ -64,7 +64,7 @@ impl Reading {
 #[derive(Debug)]
 struct Output {
     description: String,
-    error: Option<reqwest::Error>,
+    error: Option<Error>,
     data: Option<Response>,
     thread_id: ThreadId,
     debug: bool
@@ -73,7 +73,7 @@ struct Output {
 impl Output {
     pub fn new(
         description: String,
-        error: Option<reqwest::Error>,
+        error: Option<Error>,
         data: Option<Response>,
         thread_id: ThreadId,
         debug: bool
@@ -120,11 +120,24 @@ impl fmt::Display for Output {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.is_error() {
             let error = self.error.as_ref().unwrap();
-            write!(f, "{} Status: {:?}, Thread ID: {:?}", self.description, error.status(), self.thread_id)
+            write!(f, "{} Status: {:?}, Thread ID: {:?}", self.description, error.inner.status(), self.thread_id)
         } else {
             let response = self.data.as_ref().unwrap();
             let status = response.status().as_u16();
-            write!(f, "{} Status: {}, Thread ID: {:?}",self.description, status, self.thread_id)
+            write!(f, "{} Status: {}, Thread ID: {:?}", self.description, status, self.thread_id)
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Error {
+  inner: reqwest::Error
+}
+
+impl From<reqwest::Error> for Error {
+    fn from(error: reqwest::Error) -> Self {
+        Error {
+            inner: error
         }
     }
 }
@@ -224,7 +237,7 @@ pub fn run(cli: &Cli) {
               Err(error) => {
                 Output::new(
                     String::from("Response error from Ambi backend."),
-                    Some(error),
+                    Some(error.into()),
                     None,
                     std::thread::current().id(),
                     debug   
