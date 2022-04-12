@@ -9,6 +9,15 @@ You can find documentation on installing Rust [here](https://www.rust-lang.org/t
 
 You will also need a local copy of [Ambi](https://github.com/jhodapp/ambi) running ( default port 4000 ).
 
+## Set Up Git Hooks
+
+The ambi_mock_client repository makes use of several Git hooks to ensure that code quality standards are met and consistent. To automatically configure these hooks for your local workspace, you can run the following:
+```bash
+./scripts/create-git-hooks
+```
+
+This will create symlinks to the Git hooks, preserving any hooks that you may have already configured.
+
 ### Using cargo run
 ```BASH
 > cargo build
