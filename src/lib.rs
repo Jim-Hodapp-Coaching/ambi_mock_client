@@ -3,18 +3,19 @@
 //!
 //! This file provides for a separation of concerns from main.rs for application
 //! logic, per the standard Rust pattern.
-//! 
+//!
 //! See `main.rs` for more details about what this application does.
 //!
 //! See the `LICENSE` file for Copyright and license details.
-//! 
+//!
 
+use clap::Parser;
 use rand::{thread_rng, Rng};
 use reqwest::blocking::{Client, Response};
 use reqwest::header::CONTENT_TYPE;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::fmt;
-use clap::{Parser};
+use std::io::Write;
 use std::thread::{spawn, JoinHandle, ThreadId};
 
 /// Defines the Ambi Mock Client command line interface as a struct
@@ -22,8 +23,12 @@ use std::thread::{spawn, JoinHandle, ThreadId};
 #[clap(name = "Ambi Mock Client")]
 #[clap(author = "Rust Never Sleeps community (https://github.com/Jim-Hodapp-Coaching/)")]
 #[clap(version = "0.1.0")]
-#[clap(about = "Provides a mock Ambi client that emulates real sensor hardware such as an Edge client.")]
-#[clap(long_about = "This application emulates a real set of hardware sensors that can report on environmental conditions such as temperature, pressure, humidity, etc.")]
+#[clap(
+    about = "Provides a mock Ambi client that emulates real sensor hardware such as an Edge client."
+)]
+#[clap(
+    long_about = "This application emulates a real set of hardware sensors that can report on environmental conditions such as temperature, pressure, humidity, etc."
+)]
 pub struct Cli {
     /// Turns verbose console debug output on
     #[clap(short, long)]
@@ -31,16 +36,16 @@ pub struct Cli {
 
     /// Make <INT> number of concurrent requests
     #[clap(short, long, default_value_t = 1)]
-    pub int: u16
+    pub int: u16,
 }
 
 #[derive(Serialize, Deserialize)]
 struct Reading {
-  temperature: String,
-  humidity: String,
-  pressure: String,
-  dust_concentration: String,
-  air_purity: String
+    temperature: String,
+    humidity: String,
+    pressure: String,
+    dust_concentration: String,
+    air_purity: String,
 }
 
 impl Reading {
@@ -49,95 +54,88 @@ impl Reading {
         humidity: String,
         pressure: String,
         dust_concentration: String,
-        air_purity: String
+        air_purity: String,
     ) -> Reading {
         Reading {
             temperature,
             humidity,
             pressure,
             dust_concentration,
-            air_purity
+            air_purity,
         }
     }
 }
 
+#[derive(Debug, PartialEq)]
+struct ResponseLog<'a, W: Write> {
+    debug: bool,
+    writer: &'a mut W,
+}
+
+impl<'a, W: Write> ResponseLog<'a, W> {
+    pub fn new(debug: bool, writer: &'a mut W) -> Self {
+        ResponseLog {
+            debug: debug,
+            writer: writer,
+        }
+    }
+
+    pub fn print<R: fmt::Display + fmt::Debug>(&mut self, result: R) {
+        let result_string = if self.debug {
+            format!("{:?}", result)
+        } else {
+            format!("{}", result)
+        };
+        self.writer.write_all(result_string.as_bytes()).unwrap();
+    }
+}
+
 #[derive(Debug)]
-struct Output {
+struct RequestResult {
     description: String,
-    error: Option<Error>,
+    error: Option<reqwest::Error>,
     data: Option<Response>,
     thread_id: ThreadId,
-    debug: bool
-  }
+}
 
-impl Output {
+impl RequestResult {
     pub fn new(
         description: String,
-        error: Option<Error>,
+        error: Option<reqwest::Error>,
         data: Option<Response>,
         thread_id: ThreadId,
-        debug: bool
-    ) -> Output {
-        Output {
+    ) -> RequestResult {
+        RequestResult {
             description,
             error,
             data,
             thread_id,
-            debug
         }
     }
 
     pub fn is_error(&self) -> bool {
-      self.error.is_some()
+        self.error.is_some()
     }
-
-    pub fn print(&self) {
-        if self.is_error() {
-           self.print_to_stderr()     
-        } else {
-          self.print_to_stdout()
-        }
-    }
-
-    fn print_to_stderr(&self) {
-      if self.debug {
-        eprintln!("{:#?}", self)
-      } else {
-        eprintln!("{}", self)
-      }
-    }
-
-    fn print_to_stdout(&self) {
-        if self.debug {
-          println!("{:#?}", self)
-        } else {
-          println!("{}", self)
-        }
-      }
 }
 
-impl fmt::Display for Output {
+impl fmt::Display for RequestResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.is_error() {
             let error = self.error.as_ref().unwrap();
-            write!(f, "{} Status: {:?}, Thread ID: {:?}", self.description, error.inner.status(), self.thread_id)
+            let status = error.status();
+            write!(
+                f,
+                "{} Status: {:?}, Thread ID: {:?}",
+                self.description, status, self.thread_id
+            )
         } else {
             let response = self.data.as_ref().unwrap();
             let status = response.status().as_u16();
-            write!(f, "{} Status: {}, Thread ID: {:?}", self.description, status, self.thread_id)
-        }
-    }
-}
-
-#[derive(Debug)]
-struct Error {
-  inner: reqwest::Error
-}
-
-impl From<reqwest::Error> for Error {
-    fn from(error: reqwest::Error) -> Self {
-        Error {
-            inner: error
+            write!(
+                f,
+                "{} Status: {}, Thread ID: {:?}",
+                self.description, status, self.thread_id
+            )
         }
     }
 }
@@ -147,7 +145,7 @@ enum AirPurity {
     Dangerous,
     High,
     Low,
-    FreshAir
+    FreshAir,
 }
 
 impl AirPurity {
@@ -169,7 +167,7 @@ impl fmt::Display for AirPurity {
             AirPurity::Low => write!(f, "Fresh Air"),
             AirPurity::High => write!(f, "Low Pollution"),
             AirPurity::Dangerous => write!(f, "High Pollution"),
-            AirPurity::FreshAir => write!(f, "Dangerous Pollution")
+            AirPurity::FreshAir => write!(f, "Dangerous Pollution"),
         }
     }
 }
@@ -223,28 +221,26 @@ pub fn run(cli: &Cli) {
     let mut handlers: Vec<JoinHandle<()>> = vec![];
     let debug: bool = cli.debug;
     for _ in 0..cli.int {
-        let handler = spawn(move ||
-            match send_request(URL, Client::new()) {
-              Ok(response) => {
-                Output::new(
-                   String::from("Response from Ambi backend."),
-                   None,
-                   Some(response),
-                   std::thread::current().id(),
-                   debug   
-                ).print(); 
-              }
-              Err(error) => {
-                Output::new(
+        let handler = spawn(move || match send_request(URL, Client::new()) {
+            Ok(response) => {
+                let result = RequestResult::new(
+                    String::from("Response from Ambi backend."),
+                    None,
+                    Some(response),
+                    std::thread::current().id(),
+                );
+                ResponseLog::new(debug, &mut std::io::stdout()).print(result)
+            }
+            Err(error) => {
+                let result = RequestResult::new(
                     String::from("Response error from Ambi backend."),
-                    Some(error.into()),
+                    Some(error),
                     None,
                     std::thread::current().id(),
-                    debug   
-                 ).print();
-              }
+                );
+                ResponseLog::new(debug, &mut std::io::stderr()).print(result)
             }
-        );
+        });
 
         handlers.push(handler);
     }
@@ -261,18 +257,18 @@ mod tests {
 
     #[test]
     fn random_gen_humidity_returns_correctly_formatted_humidity_data() {
-      let result = random_gen_humidity();
-      let regex = Regex::new(r"\d{1,2}.\d{1}").unwrap();
+        let result = random_gen_humidity();
+        let regex = Regex::new(r"\d{1,2}.\d{1}").unwrap();
 
-      assert!(regex.is_match(&result));
+        assert!(regex.is_match(&result));
     }
-    
+
     #[test]
     fn random_gen_temperature_returns_correctly_formatted_humidity_data() {
-      let result = random_gen_temperature();
-      let regex = Regex::new(r"\d{1,2}.\d{1}").unwrap();
+        let result = random_gen_temperature();
+        let regex = Regex::new(r"\d{1,2}.\d{1}").unwrap();
 
-      assert!(regex.is_match(&result));
+        assert!(regex.is_match(&result));
     }
 
     #[test]
@@ -301,5 +297,30 @@ mod tests {
         assert_eq!(AirPurity::from_value(low), AirPurity::Low);
         assert_eq!(AirPurity::from_value(high), AirPurity::High);
         assert_eq!(AirPurity::from_value(dangerous), AirPurity::Dangerous);
+    }
+
+    #[test]
+    fn response_log_new_returns_response_log() {
+        let mut writer1 = vec![0, 0, 0];
+        let mut writer2 = writer1.clone();
+        assert_eq!(
+            ResponseLog::new(true, &mut writer1),
+            ResponseLog {
+                debug: true,
+                writer: &mut writer2
+            }
+        )
+    }
+
+    #[test]
+    fn response_log_prints() {
+        let mut writer = Vec::new();
+        let result = "123";
+        let mut response_log = ResponseLog::new(false, &mut writer);
+        let expected = result.as_bytes().to_vec();
+
+        response_log.print(result);
+
+        assert_eq!(writer, expected)
     }
 }
