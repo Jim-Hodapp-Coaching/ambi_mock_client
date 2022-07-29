@@ -171,36 +171,6 @@ pub fn run(cli: &Cli) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // use regex::Regex;
-
-    // #[test]
-    // fn random_gen_humidity_returns_correctly_formatted_humidity_data() {
-    //     let result = random_gen_humidity();
-    //     let regex = Regex::new(r"\d{1,2}.\d{1}").unwrap();
-
-    //     assert!(regex.is_match(&result));
-    // }
-    // #[test]
-    // fn random_gen_temperature_returns_correctly_formatted_humidity_data() {
-    //     let result = random_gen_temperature();
-    //     let regex = Regex::new(r"\d{1,2}.\d{1}").unwrap();
-
-    //     assert!(regex.is_match(&result));
-    // }
-
-    // #[test]
-    // fn random_gen_pressure_returns_correctly_formatted_pressure_data() {
-    //     let result = random_gen_pressure();
-    //     let regex = Regex::new(r"\d{3,4}").unwrap();
-    //     assert!(regex.is_match(&result));
-    // }
-
-    // #[test]
-    // fn random_gen_dust_concentration_returns_correctly_formatted_pressure_data() {
-    //     let result = random_gen_dust_concentration();
-    //     let regex = Regex::new(r"\d{0,4}").unwrap();
-    //     assert!(regex.is_match(&result));
-    // }
 
     #[test]
     fn air_purity_from_value_returns_correct_enum() {
