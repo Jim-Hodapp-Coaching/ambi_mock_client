@@ -38,7 +38,7 @@ struct Reading {
     temperature: f64,
     humidity: f64,
     pressure: i32,
-    dust_concentration: i32,
+    dust_concentration: f64,
     air_purity: String,
 }
 
@@ -47,7 +47,7 @@ impl Reading {
         temperature: f64,
         humidity: f64,
         pressure: i32,
-        dust_concentration: i32,
+        dust_concentration: f64,
         air_purity: String,
     ) -> Reading {
         Reading {
@@ -69,13 +69,13 @@ enum AirPurity {
 }
 
 impl AirPurity {
-    fn from_value(value: i32) -> AirPurity {
+    fn from_value(value: f64) -> AirPurity {
         match value {
-            i32::MIN..=50 => return AirPurity::FreshAir,
-            51..=100 => return AirPurity::Low,
-            101..=150 => return AirPurity::High,
-            151.. => return AirPurity::Dangerous,
-        };
+            value if value >= f64::MIN && value <= 50.0 => return AirPurity::FreshAir,
+            value if value > 50.0 && value <= 100.0 => return AirPurity::Low,
+            value if value > 100.0 && value <= 150.0 => return AirPurity::High,
+            _ => return AirPurity::Dangerous,
+        }
     }
 }
 
@@ -111,9 +111,10 @@ fn random_gen_pressure() -> i32 {
     rng.gen_range(900..=1100)
 }
 
-fn random_gen_dust_concentration() -> i32 {
+fn random_gen_dust_concentration() -> f64 {
     let mut rng = thread_rng();
-    rng.gen_range(0..=1000)
+    let value = rng.gen_range(0.0..=1000.0);
+    f64::trunc(value * 100.0) / 100.0
 }
 
 pub fn run(cli: &Cli) {
@@ -175,10 +176,10 @@ mod tests {
     #[test]
     fn air_purity_from_value_returns_correct_enum() {
         let mut rng = thread_rng();
-        let fresh_air = rng.gen_range(i32::MIN..=50);
-        let low = rng.gen_range(51..=100);
-        let high = rng.gen_range(101..=150);
-        let dangerous = rng.gen_range(151..i32::MAX);
+        let fresh_air = rng.gen_range(0.0..=50.0);
+        let low = rng.gen_range(51.0..=100.0);
+        let high = rng.gen_range(101.0..=150.0);
+        let dangerous = rng.gen_range(151.0..f64::MAX);
 
         assert_eq!(AirPurity::from_value(fresh_air), AirPurity::FreshAir);
         assert_eq!(AirPurity::from_value(low), AirPurity::Low);
