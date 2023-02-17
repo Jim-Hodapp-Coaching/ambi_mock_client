@@ -102,7 +102,6 @@ pub(crate) struct RequestScheduler {
 }
 
 pub(crate) fn send_data(req_scheduler: RequestScheduler, json: String, debug: bool) {
-    // TODO: https://github.com/Jim-Hodapp-Coaching/ambi_mock_client/pull/8#pullrequestreview-932531277
     // TODO: Debug logging?
 
     // If 1 thread is specified, we can use the current thread.
