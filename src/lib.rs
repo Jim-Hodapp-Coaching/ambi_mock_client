@@ -18,13 +18,11 @@ use std::fmt;
 
 /// Defines the Ambi Mock Client command line interface as a struct
 #[derive(Parser, Debug)]
-#[clap(name = "Ambi Mock Client")]
-#[clap(author = "Rust Never Sleeps community (https://github.com/Jim-Hodapp-Coaching/)")]
-#[clap(version = "0.1.0")]
-#[clap(
-    about = "Provides a mock Ambi client that emulates real sensor hardware such as an Edge client."
-)]
-#[clap(
+#[command(
+    name = "Ambi Mock Client",
+    author,
+    version,
+    about,
     long_about = "This application emulates a real set of hardware sensors that can report on environmental conditions such as temperature, pressure, humidity, etc."
 )]
 pub struct Cli {
@@ -131,6 +129,7 @@ pub fn run(cli: &Cli) {
     );
 
     let json = serde_json::to_string(&reading).unwrap();
+    // TODO: Make the port configurable
     const URL: &str = "http://localhost:4000/api/readings/add";
 
     println!("Sending POST request to {} as JSON: {}", URL, json);
