@@ -59,6 +59,7 @@ impl RequestSchedulerBuilder {
             (Some(time_per_request), Some(_)) => *time_per_request,
         };
 
+        // TODO: Come up with a reasonable upper limit.
         let num_threads = self.num_threads.unwrap_or(DEFAULT_NUM_THREADS);
 
         RequestScheduler {
@@ -78,6 +79,8 @@ pub(crate) struct RequestScheduler {
 
 /// -s 5: 1 req every 5 seconds.
 pub(crate) fn send_data(req_scheduler: RequestScheduler, json: String) {
+    // TODO: https://github.com/Jim-Hodapp-Coaching/ambi_mock_client/pull/8#pullrequestreview-932531277
+    // TODO: Debug logging?
     let handles = (0..req_scheduler.num_threads)
         .map(|_| {
             let json_clone = json.clone();
