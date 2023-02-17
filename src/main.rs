@@ -12,9 +12,6 @@
 
 use clap::{Parser};
 
-// Internal library namespace for separation of app logic
-use ambi_mock_client;
-
 fn main() {
     // Parses the provided command line interface arguments and flags
     let cli = ambi_mock_client::Cli::parse();

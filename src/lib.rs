@@ -69,10 +69,10 @@ enum AirPurity {
 impl AirPurity {
     fn from_value(value: f64) -> AirPurity {
         match value {
-            value if value >= f64::MIN && value <= 50.0 => return AirPurity::FreshAir,
-            value if value > 50.0 && value <= 100.0 => return AirPurity::Low,
-            value if value > 100.0 && value <= 150.0 => return AirPurity::High,
-            _ => return AirPurity::Dangerous,
+            value if (f64::MIN..=50.0).contains(&value) => AirPurity::FreshAir,
+            value if value > 50.0 && value <= 100.0 => AirPurity::Low,
+            value if value > 100.0 && value <= 150.0 => AirPurity::High,
+            _ => AirPurity::Dangerous,
         }
     }
 }
