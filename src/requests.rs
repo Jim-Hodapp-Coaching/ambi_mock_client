@@ -1,15 +1,16 @@
-#![allow(dead_code)]
+// TODO: Remove this
+#![allow(dead_code, unused_variables)]
 
 use std::{
+    cmp::min,
     thread,
     time::{Duration, SystemTime},
 };
 
-use reqwest::blocking::Client;
-
 const DEFAULT_REQUEST_AMOUNT: u32 = 1;
 const DEFAULT_TIME_PER_REQUEST: Duration = Duration::from_secs(10);
 const DEFAULT_NUM_THREADS: u32 = 1;
+const MAX_NUM_THREADS: u32 = 10;
 
 #[derive(Clone, Copy)]
 struct RequestSchedulerBuilder {
@@ -59,8 +60,12 @@ impl RequestSchedulerBuilder {
             (Some(time_per_request), Some(_)) => *time_per_request,
         };
 
-        // TODO: Come up with a reasonable upper limit.
-        let num_threads = self.num_threads.unwrap_or(DEFAULT_NUM_THREADS);
+        // Make sure that the number of threads is never above `MAX_NUM_THREADS`.
+        // TODO: If num_threads == 0: Invalid (make this return a Result)
+        let num_threads = match self.num_threads {
+            Some(num_threads) => min(num_threads, MAX_NUM_THREADS),
+            None => DEFAULT_NUM_THREADS,
+        };
 
         RequestScheduler {
             request_amount,
@@ -77,23 +82,23 @@ pub(crate) struct RequestScheduler {
     num_threads: u32,
 }
 
-/// -s 5: 1 req every 5 seconds.
-pub(crate) fn send_data(req_scheduler: RequestScheduler, json: String) {
+pub(crate) fn send_data(req_scheduler: RequestScheduler, json: String, debug: bool) {
     // TODO: https://github.com/Jim-Hodapp-Coaching/ambi_mock_client/pull/8#pullrequestreview-932531277
     // TODO: Debug logging?
+    // TODO: If num_threads == 1: don't spawn a separate thread
     let handles = (0..req_scheduler.num_threads)
-        .map(|_| {
+        .map(|thread_id| {
             let json_clone = json.clone();
-            thread::spawn(move || send_data_internal(req_scheduler, json_clone))
+            thread::spawn(move || send_data_internal(req_scheduler, json_clone, debug, thread_id))
         })
         .collect::<Vec<_>>();
 
     let _result: Vec<_> = handles.into_iter().map(|x| x.join()).collect();
 }
 
-fn send_data_internal(req_scheduler: RequestScheduler, json: String) {
+fn send_data_internal(req_scheduler: RequestScheduler, json: String, debug: bool, thread_id: u32) {
     // TODO: Actually make the API calls.
-    let client = Client::new();
+    // let client = Client::new();
     let start = SystemTime::now();
 
     for _ in 0..req_scheduler.request_amount {
@@ -103,7 +108,10 @@ fn send_data_internal(req_scheduler: RequestScheduler, json: String) {
         //     .body(json.clone())
         //     .send();
 
-        println!("{:?}", SystemTime::elapsed(&start));
+        // TODO: Discuss what should be logged (verbose or not) and whether we should use a logger.
+        //       A logger would make the info/verbose level separation a bit cleaner. I've used
+        //       <https://github.com/rust-cli/env_logger> in the past.
+        println!("[Thread {}]: {:?}", thread_id, SystemTime::elapsed(&start));
 
         thread::sleep(req_scheduler.time_per_request)
     }
@@ -126,6 +134,6 @@ mod tests {
             // .with_total_time(Duration::from_secs(1))
             .build();
 
-        send_data(req_scheduler, "{}".to_owned());
+        send_data(req_scheduler, "{}".to_owned(), true);
     }
 }
