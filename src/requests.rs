@@ -104,7 +104,13 @@ pub(crate) struct RequestScheduler {
 pub(crate) fn send_data(req_scheduler: RequestScheduler, json: String, debug: bool) {
     // TODO: https://github.com/Jim-Hodapp-Coaching/ambi_mock_client/pull/8#pullrequestreview-932531277
     // TODO: Debug logging?
-    // TODO: If num_threads == 1: don't spawn a separate thread
+
+    // If 1 thread is specified, we can use the current thread.
+    if req_scheduler.num_threads == 1 {
+        send_data_internal(req_scheduler, json, debug, 0);
+        return;
+    }
+
     let handles = (0..req_scheduler.num_threads)
         .map(|thread_id| {
             let json_clone = json.clone();
