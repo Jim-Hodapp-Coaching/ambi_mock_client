@@ -7,6 +7,8 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use crate::error::RequestSchedulerError;
+
 const DEFAULT_REQUEST_AMOUNT: u32 = 1;
 const DEFAULT_TIME_PER_REQUEST: Duration = Duration::from_secs(10);
 const DEFAULT_NUM_THREADS: u32 = 1;
@@ -50,7 +52,7 @@ impl RequestSchedulerBuilder {
         self
     }
 
-    fn build(self) -> RequestScheduler {
+    fn build(self) -> Result<RequestScheduler, RequestSchedulerError> {
         let request_amount = self.request_amount.unwrap_or(DEFAULT_REQUEST_AMOUNT);
 
         let time_per_request = match (&self.time_per_request, &self.total_time) {
@@ -60,18 +62,35 @@ impl RequestSchedulerBuilder {
             (Some(time_per_request), Some(_)) => *time_per_request,
         };
 
-        // Make sure that the number of threads is never above `MAX_NUM_THREADS`.
-        // TODO: If num_threads == 0: Invalid (make this return a Result)
         let num_threads = match self.num_threads {
-            Some(num_threads) => min(num_threads, MAX_NUM_THREADS),
+            Some(num_threads) => num_threads,
             None => DEFAULT_NUM_THREADS,
         };
 
-        RequestScheduler {
+        // Make sure that the number of threads is in [1, `MAX_NUM_THREADS`].
+        match num_threads {
+            0 => {
+                return Err(RequestSchedulerError::InvalidArgument {
+                    argument_name: "num_threads".to_owned(),
+                    value: "0".to_owned(),
+                    message: "You must use at least 1 thread.".to_owned(),
+                })
+            }
+            1..=MAX_NUM_THREADS => (),
+            _ => {
+                return Err(RequestSchedulerError::InvalidArgument {
+                    argument_name: "num_threads".to_owned(),
+                    value: format!("{num_threads}"),
+                    message: format!("You can't use more than {MAX_NUM_THREADS} threads."),
+                })
+            }
+        }
+
+        Ok(RequestScheduler {
             request_amount,
             time_per_request,
             num_threads,
-        }
+        })
     }
 }
 
@@ -121,7 +140,7 @@ fn send_data_internal(req_scheduler: RequestScheduler, json: String, debug: bool
 mod tests {
     use std::time::Duration;
 
-    use super::{send_data, RequestSchedulerBuilder};
+    use super::{send_data, RequestSchedulerBuilder, MAX_NUM_THREADS};
 
     // Used for manual testing, will be removed/edited later
     // cargo t -- send_data_test --nocapture
@@ -134,6 +153,27 @@ mod tests {
             // .with_total_time(Duration::from_secs(1))
             .build();
 
+        assert!(req_scheduler.is_ok());
+        let req_scheduler = req_scheduler.unwrap();
+
         send_data(req_scheduler, "{}".to_owned(), true);
+    }
+
+    #[test]
+    fn test_invalid_num_threads_low() {
+        let req_scheduler = RequestSchedulerBuilder::default()
+            .with_num_threads(0)
+            .build();
+
+        assert!(req_scheduler.is_err())
+    }
+
+    #[test]
+    fn test_invalid_num_threads_high() {
+        let req_scheduler = RequestSchedulerBuilder::default()
+            .with_num_threads(MAX_NUM_THREADS + 1)
+            .build();
+
+        assert!(req_scheduler.is_err())
     }
 }

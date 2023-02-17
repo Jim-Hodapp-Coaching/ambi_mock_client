@@ -10,6 +10,7 @@
 //!
 
 mod data;
+mod error;
 mod requests;
 
 use crate::data::Reading;
