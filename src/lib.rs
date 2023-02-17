@@ -10,6 +10,7 @@
 //!
 
 mod data;
+mod requests;
 
 use crate::data::Reading;
 use crate::data::{
@@ -20,6 +21,9 @@ use reqwest::blocking::Client;
 use reqwest::header::CONTENT_TYPE;
 
 use crate::data::AirPurity;
+
+// TODO: Make the port configurable
+const URL: &str = "http://localhost:4000/api/readings/add";
 
 /// Defines the Ambi Mock Client command line interface as a struct
 #[derive(Parser, Debug)]
@@ -50,8 +54,6 @@ pub fn run(cli: &Cli) {
     );
 
     let json = serde_json::to_string(&reading).unwrap();
-    // TODO: Make the port configurable
-    const URL: &str = "http://localhost:4000/api/readings/add";
 
     println!("Sending POST request to {} as JSON: {}", URL, json);
 
