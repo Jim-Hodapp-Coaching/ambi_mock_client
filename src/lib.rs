@@ -69,10 +69,7 @@ pub fn run(cli: &Cli) {
 
     match res {
         Ok(response) => {
-            info!(
-                "Response from Ambi backend: {:?}",
-                response.status().as_str()
-            );
+            info!("Response from Ambi backend: {}", response.status().as_str());
             debug!("Response from Ambi backend: {:#?}", response);
         }
         Err(e) => {
