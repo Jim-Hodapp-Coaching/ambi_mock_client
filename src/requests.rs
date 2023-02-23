@@ -2,10 +2,11 @@
 #![allow(dead_code, unused_variables)]
 
 use std::{
-    cmp::min,
     thread,
     time::{Duration, SystemTime},
 };
+
+use log::{debug, info};
 
 use crate::error::RequestSchedulerError;
 
@@ -102,13 +103,15 @@ pub(crate) struct RequestScheduler {
 }
 
 pub(crate) fn send_data(req_scheduler: RequestScheduler, json: String, debug: bool) {
-    // TODO: Debug logging?
-
     // If 1 thread is specified, we can use the current thread.
     if req_scheduler.num_threads == 1 {
+        debug!("num_threads is set to 1, use current thread.");
+
         send_data_internal(req_scheduler, json, debug, 0);
         return;
     }
+
+    debug!("Spawning {} threads.", req_scheduler.num_threads);
 
     let handles = (0..req_scheduler.num_threads)
         .map(|thread_id| {
@@ -117,7 +120,11 @@ pub(crate) fn send_data(req_scheduler: RequestScheduler, json: String, debug: bo
         })
         .collect::<Vec<_>>();
 
+    debug!("Threads spawned.");
+
     let _result: Vec<_> = handles.into_iter().map(|x| x.join()).collect();
+
+    debug!("Threads joined.");
 }
 
 fn send_data_internal(req_scheduler: RequestScheduler, json: String, debug: bool, thread_id: u32) {
@@ -132,10 +139,7 @@ fn send_data_internal(req_scheduler: RequestScheduler, json: String, debug: bool
         //     .body(json.clone())
         //     .send();
 
-        // TODO: Discuss what should be logged (verbose or not) and whether we should use a logger.
-        //       A logger would make the info/verbose level separation a bit cleaner. I've used
-        //       <https://github.com/rust-cli/env_logger> in the past.
-        println!("[Thread {}]: {:?}", thread_id, SystemTime::elapsed(&start));
+        info!("[Thread {}]: {:?}", thread_id, SystemTime::elapsed(&start));
 
         thread::sleep(req_scheduler.time_per_request)
     }

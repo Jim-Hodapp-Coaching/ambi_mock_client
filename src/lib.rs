@@ -18,6 +18,7 @@ use crate::data::{
     random_gen_dust_concentration, random_gen_humidity, random_gen_pressure, random_gen_temperature,
 };
 use clap::Parser;
+use log::{debug, error, info};
 use reqwest::blocking::Client;
 use reqwest::header::CONTENT_TYPE;
 
@@ -42,7 +43,7 @@ pub struct Cli {
 }
 
 pub fn run(cli: &Cli) {
-    println!("\r\ncli: {:?}\r\n", cli);
+    debug!("cli: {cli:?}");
 
     let dust_concentration = random_gen_dust_concentration();
     let air_purity = AirPurity::from_value(dust_concentration).to_string();
@@ -56,7 +57,8 @@ pub fn run(cli: &Cli) {
 
     let json = serde_json::to_string(&reading).unwrap();
 
-    println!("Sending POST request to {} as JSON: {}", URL, json);
+    info!("Sending POST request to {}", URL);
+    debug!("Request JSON: {}", json);
 
     let client = Client::new();
     let res = client
@@ -66,28 +68,24 @@ pub fn run(cli: &Cli) {
         .send();
 
     match res {
-        Ok(response) => match cli.debug {
-            true => println!("Response from Ambi backend: {:#?}", response),
-            false => println!(
+        Ok(response) => {
+            info!(
                 "Response from Ambi backend: {:?}",
                 response.status().as_str()
-            ),
-        },
+            );
+            debug!("Response from Ambi backend: {:#?}", response);
+        }
         Err(e) => {
-            match cli.debug {
-                // Print out the entire reqwest::Error for verbose debugging
-                true => eprintln!("Response error from Ambi backend: {:?}", e),
-                // Keep the error reports more succinct
-                false => {
-                    if e.is_request() {
-                        eprintln!("Response error from Ambi backend: request error");
-                    } else if e.is_timeout() {
-                        eprintln!("Response error from Ambi backend: request timed out");
-                    } else {
-                        eprintln!("Response error from Ambi backend: specific error type unknown");
-                    }
-                }
+            if e.is_request() {
+                error!("Response error from Ambi backend: request error");
+            } else if e.is_timeout() {
+                error!("Response error from Ambi backend: request timed out");
+            } else {
+                error!("Response error from Ambi backend: specific error type unknown");
             }
+
+            debug!("{}", e.to_string());
+            debug!("Response error from Ambi backend: {:?}", e);
         }
     }
 }

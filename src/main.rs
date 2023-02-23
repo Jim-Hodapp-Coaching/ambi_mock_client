@@ -11,15 +11,27 @@
 //!
 
 use clap::Parser;
+use log::LevelFilter;
 
 fn main() {
     // Parses the provided command line interface arguments and flags
     let cli = ambi_mock_client::Cli::parse();
 
-    match cli.debug {
-        true => println!("Debug mode is now *on*"),
-        false => println!("Debug mode is now *off*"),
-    }
+    init_logging(cli.debug);
 
     ambi_mock_client::run(&cli);
+}
+
+fn init_logging(is_debug: bool) {
+    let mut logger_builder = env_logger::Builder::new();
+
+    match is_debug {
+        true => logger_builder.filter_level(LevelFilter::Debug),
+        false => logger_builder.filter_level(LevelFilter::Info),
+    };
+
+    // The format_target is what makes the logs include `ambi_mock_client` everywhere. I left it
+    // here in case anyone wants to disable it in the future. It is enabled because not all logs
+    // originate from this crate (reqwest for instance makes a few as well).
+    logger_builder.format_target(true).init();
 }
