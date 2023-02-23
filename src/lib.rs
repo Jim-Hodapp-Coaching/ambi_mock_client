@@ -25,7 +25,7 @@ use reqwest::header::CONTENT_TYPE;
 use crate::data::AirPurity;
 
 // TODO: Make the port configurable
-const URL: &str = "http://localhost:4000/api/readings/add";
+const URL: &str = "http://localhost:8000/api/readings/add";
 
 /// Defines the Ambi Mock Client command line interface as a struct
 #[derive(Parser, Debug)]
