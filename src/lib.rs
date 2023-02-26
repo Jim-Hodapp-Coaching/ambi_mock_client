@@ -82,6 +82,7 @@ pub fn run(cli: &Cli) -> Result<(), RequestSchedulerError> {
 
     Ok(())
 
+    // TODO: Move these logs to the requests file
     // info!("Sending POST request to {}", URL);
     // debug!("Request JSON: {}", json);
     //
