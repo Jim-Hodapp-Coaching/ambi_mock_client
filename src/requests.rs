@@ -36,52 +36,52 @@ impl RequestSchedulerBuilder {
         }
     }
 
-    pub fn with_request_amount(&mut self, request_amount: u32) -> &mut Self {
+    pub fn with_request_amount(mut self, request_amount: u32) -> Self {
         self.request_amount = Some(request_amount);
         self
     }
 
-    pub fn with_some_request_amount(&mut self, request_amount: &Option<u32>) -> &mut Self {
+    pub fn with_some_request_amount(mut self, request_amount: &Option<u32>) -> Self {
         self.request_amount = *request_amount;
         self
     }
 
-    pub fn with_time_per_request(&mut self, time_per_request: &Duration) -> &mut Self {
+    pub fn with_time_per_request(mut self, time_per_request: &Duration) -> Self {
         self.time_per_request = Some(*time_per_request);
         self
     }
 
-    pub fn with_some_time_per_request(&mut self, time_per_request: &Option<Duration>) -> &mut Self {
+    pub fn with_some_time_per_request(mut self, time_per_request: &Option<Duration>) -> Self {
         self.time_per_request = *time_per_request;
         self
     }
 
-    pub fn with_total_time(&mut self, total_time: &Duration) -> &mut Self {
+    pub fn with_total_time(mut self, total_time: &Duration) -> Self {
         self.total_time = Some(*total_time);
         self
     }
 
-    pub fn with_some_total_time(&mut self, total_time: &Option<Duration>) -> &mut Self {
+    pub fn with_some_total_time(mut self, total_time: &Option<Duration>) -> Self {
         self.total_time = *total_time;
         self
     }
 
-    pub fn with_num_threads(&mut self, num_threads: u32) -> &mut Self {
+    pub fn with_num_threads(mut self, num_threads: u32) -> Self {
         self.num_threads = Some(num_threads);
         self
     }
 
-    pub fn with_some_num_threads(&mut self, num_threads: &Option<u32>) -> &mut Self {
+    pub fn with_some_num_threads(mut self, num_threads: &Option<u32>) -> Self {
         self.num_threads = *num_threads;
         self
     }
 
-    pub fn with_loop_indefinitely(&mut self, loop_indefinitely: bool) -> &mut Self {
+    pub fn with_loop_indefinitely(mut self, loop_indefinitely: bool) -> Self {
         self.loop_indefinitely = Some(loop_indefinitely);
         self
     }
 
-    pub fn with_some_loop_indefinitely(&mut self, loop_indefinitely: &Option<bool>) -> &mut Self {
+    pub fn with_some_loop_indefinitely(mut self, loop_indefinitely: &Option<bool>) -> Self {
         self.loop_indefinitely = *loop_indefinitely;
         self
     }
