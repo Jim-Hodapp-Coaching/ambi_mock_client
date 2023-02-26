@@ -19,7 +19,7 @@ fn main() {
 
     init_logging(cli.debug);
 
-    ambi_mock_client::run(&cli);
+    let _ = ambi_mock_client::run(&cli);
 }
 
 fn init_logging(is_debug: bool) {

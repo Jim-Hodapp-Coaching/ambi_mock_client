@@ -13,18 +13,21 @@ mod data;
 mod error;
 mod requests;
 
-use crate::data::Reading;
+use std::time::Duration;
+
 use crate::data::{
     random_gen_dust_concentration, random_gen_humidity, random_gen_pressure, random_gen_temperature,
 };
+use crate::{
+    data::Reading,
+    requests::{send_data, RequestSchedulerBuilder},
+};
 use clap::Parser;
-use log::{debug, error, info};
-use reqwest::blocking::Client;
-use reqwest::header::CONTENT_TYPE;
+use error::RequestSchedulerError;
+use log::debug;
 
 use crate::data::AirPurity;
 
-// TODO: Make the port configurable
 const URL: &str = "http://localhost:8000/api/readings/add";
 
 /// Defines the Ambi Mock Client command line interface as a struct
@@ -38,12 +41,30 @@ const URL: &str = "http://localhost:8000/api/readings/add";
 )]
 pub struct Cli {
     /// Turns verbose console debug output on
-    #[clap(short, long)]
+    #[arg(short, long)]
     pub debug: bool,
+    #[arg(short = 'n', long)]
+    pub request_amount: Option<u32>,
+    #[arg(short = 't', long = "time-per-request")]
+    pub time_per_request_s: Option<u64>,
+    #[arg(short = 'T', long = "total-time")]
+    pub total_time_s: Option<u64>,
+    #[arg(short = 'p', long)]
+    pub num_threads: Option<u32>,
+    #[arg(short = 'l', long, action)]
+    pub loop_indefinitely: bool,
 }
 
-pub fn run(cli: &Cli) {
+pub fn run(cli: &Cli) -> Result<(), RequestSchedulerError> {
     debug!("cli: {cli:?}");
+
+    let req_scheduler = RequestSchedulerBuilder::default()
+        .with_some_request_amount(&cli.request_amount)
+        .with_some_time_per_request(&cli.time_per_request_s.map(Duration::from_secs))
+        .with_some_total_time(&cli.total_time_s.map(Duration::from_secs))
+        .with_some_num_threads(&cli.num_threads)
+        .with_loop_indefinitely(cli.loop_indefinitely)
+        .build()?;
 
     let dust_concentration = random_gen_dust_concentration();
     let air_purity = AirPurity::from_value(dust_concentration).to_string();
@@ -57,32 +78,36 @@ pub fn run(cli: &Cli) {
 
     let json = serde_json::to_string(&reading).unwrap();
 
-    info!("Sending POST request to {}", URL);
-    debug!("Request JSON: {}", json);
+    send_data(req_scheduler, json, cli.debug);
 
-    let client = Client::new();
-    let res = client
-        .post(URL)
-        .header(CONTENT_TYPE, "application/json")
-        .body(json)
-        .send();
+    Ok(())
 
-    match res {
-        Ok(response) => {
-            info!("Response from Ambi backend: {}", response.status().as_str());
-            debug!("Response from Ambi backend: {:#?}", response);
-        }
-        Err(e) => {
-            if e.is_request() {
-                error!("Response error from Ambi backend: request error");
-            } else if e.is_timeout() {
-                error!("Response error from Ambi backend: request timed out");
-            } else {
-                error!("Response error from Ambi backend: specific error type unknown");
-            }
+    // info!("Sending POST request to {}", URL);
+    // debug!("Request JSON: {}", json);
+    //
+    // let client = Client::new();
+    // let res = client
+    //     .post(URL)
+    //     .header(CONTENT_TYPE, "application/json")
+    //     .body(json)
+    //     .send();
 
-            debug!("{}", e.to_string());
-            debug!("Response error from Ambi backend: {:?}", e);
-        }
-    }
+    // match res {
+    //     Ok(response) => {
+    //         info!("Response from Ambi backend: {}", response.status().as_str());
+    //         debug!("Response from Ambi backend: {:#?}", response);
+    //     }
+    //     Err(e) => {
+    //         if e.is_request() {
+    //             error!("Response error from Ambi backend: request error");
+    //         } else if e.is_timeout() {
+    //             error!("Response error from Ambi backend: request timed out");
+    //         } else {
+    //             error!("Response error from Ambi backend: specific error type unknown");
+    //         }
+
+    //         debug!("{}", e.to_string());
+    //         debug!("Response error from Ambi backend: {:?}", e);
+    //     }
+    // }
 }

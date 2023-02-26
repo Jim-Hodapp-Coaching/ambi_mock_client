@@ -7,8 +7,9 @@ use std::{
 };
 
 use log::{debug, info};
+use reqwest::{blocking::Client, header::CONTENT_TYPE};
 
-use crate::error::RequestSchedulerError;
+use crate::{error::RequestSchedulerError, URL};
 
 const DEFAULT_REQUEST_AMOUNT: u32 = 1;
 const DEFAULT_TIME_PER_REQUEST: Duration = Duration::from_secs(10);
@@ -16,44 +17,79 @@ const DEFAULT_NUM_THREADS: u32 = 1;
 const MAX_NUM_THREADS: u32 = 10;
 
 #[derive(Clone, Copy)]
-struct RequestSchedulerBuilder {
+pub struct RequestSchedulerBuilder {
     request_amount: Option<u32>,
     time_per_request: Option<Duration>,
     total_time: Option<Duration>,
     num_threads: Option<u32>,
+    loop_indefinitely: Option<bool>,
 }
 
 impl RequestSchedulerBuilder {
-    fn default() -> Self {
+    pub fn default() -> Self {
         RequestSchedulerBuilder {
             request_amount: None,
             time_per_request: None,
             total_time: None,
             num_threads: None,
+            loop_indefinitely: None,
         }
     }
 
-    fn with_request_amount(&mut self, request_amount: u32) -> &mut Self {
+    pub fn with_request_amount(&mut self, request_amount: u32) -> &mut Self {
         self.request_amount = Some(request_amount);
         self
     }
 
-    fn with_time_per_request(&mut self, time_per_request: Duration) -> &mut Self {
-        self.time_per_request = Some(time_per_request);
+    pub fn with_some_request_amount(&mut self, request_amount: &Option<u32>) -> &mut Self {
+        self.request_amount = *request_amount;
         self
     }
 
-    fn with_total_time(&mut self, total_time: Duration) -> &mut Self {
-        self.total_time = Some(total_time);
+    pub fn with_time_per_request(&mut self, time_per_request: &Duration) -> &mut Self {
+        self.time_per_request = Some(*time_per_request);
         self
     }
 
-    fn with_num_threads(&mut self, num_threads: u32) -> &mut Self {
+    pub fn with_some_time_per_request(&mut self, time_per_request: &Option<Duration>) -> &mut Self {
+        self.time_per_request = *time_per_request;
+        self
+    }
+
+    pub fn with_total_time(&mut self, total_time: &Duration) -> &mut Self {
+        self.total_time = Some(*total_time);
+        self
+    }
+
+    pub fn with_some_total_time(&mut self, total_time: &Option<Duration>) -> &mut Self {
+        self.total_time = *total_time;
+        self
+    }
+
+    pub fn with_num_threads(&mut self, num_threads: u32) -> &mut Self {
         self.num_threads = Some(num_threads);
         self
     }
 
-    fn build(self) -> Result<RequestScheduler, RequestSchedulerError> {
+    pub fn with_some_num_threads(&mut self, num_threads: &Option<u32>) -> &mut Self {
+        self.num_threads = *num_threads;
+        self
+    }
+
+    pub fn with_loop_indefinitely(&mut self, loop_indefinitely: bool) -> &mut Self {
+        self.loop_indefinitely = Some(loop_indefinitely);
+        self
+    }
+
+    pub fn with_some_loop_indefinitely(&mut self, loop_indefinitely: &Option<bool>) -> &mut Self {
+        self.loop_indefinitely = *loop_indefinitely;
+        self
+    }
+
+    pub fn build(self) -> Result<RequestScheduler, RequestSchedulerError> {
+        // Determine to loop indefinitely
+        let loop_indefinitely = self.loop_indefinitely.unwrap_or(false);
+
         let request_amount = self.request_amount.unwrap_or(DEFAULT_REQUEST_AMOUNT);
 
         let time_per_request = match (&self.time_per_request, &self.total_time) {
@@ -91,18 +127,20 @@ impl RequestSchedulerBuilder {
             request_amount,
             time_per_request,
             num_threads,
+            loop_indefinitely,
         })
     }
 }
 
 #[derive(Clone, Copy)]
-pub(crate) struct RequestScheduler {
+pub struct RequestScheduler {
     request_amount: u32,
     time_per_request: Duration,
     num_threads: u32,
+    loop_indefinitely: bool,
 }
 
-pub(crate) fn send_data(req_scheduler: RequestScheduler, json: String, debug: bool) {
+pub fn send_data(req_scheduler: RequestScheduler, json: String, debug: bool) {
     // If 1 thread is specified, we can use the current thread.
     if req_scheduler.num_threads == 1 {
         debug!("num_threads is set to 1, use current thread.");
@@ -128,21 +166,36 @@ pub(crate) fn send_data(req_scheduler: RequestScheduler, json: String, debug: bo
 }
 
 fn send_data_internal(req_scheduler: RequestScheduler, json: String, debug: bool, thread_id: u32) {
-    // TODO: Actually make the API calls.
-    // let client = Client::new();
     let start = SystemTime::now();
 
-    for _ in 0..req_scheduler.request_amount {
-        // let res = client
-        //     .post(URL)
-        //     .header(CONTENT_TYPE, "application/json")
-        //     .body(json.clone())
-        //     .send();
-
-        info!("[Thread {}]: {:?}", thread_id, SystemTime::elapsed(&start));
-
-        thread::sleep(req_scheduler.time_per_request)
+    if req_scheduler.loop_indefinitely {
+        loop {
+            info!("[Thread {}]: {:?}", thread_id, SystemTime::elapsed(&start));
+            // make_request(json.clone(), debug, thread_id);
+            thread::sleep(req_scheduler.time_per_request)
+        }
     }
+
+    for i in 0..req_scheduler.request_amount {
+        info!("[Thread {}]: {:?}", thread_id, SystemTime::elapsed(&start));
+        // make_request(json.clone(), debug, thread_id);
+
+        // Only use thread.sleep if we are not on the last request
+        if i != req_scheduler.request_amount - 1 {
+            thread::sleep(req_scheduler.time_per_request)
+        }
+    }
+}
+
+// TODO: Currently unused for debugging.
+fn make_request(json: String, debug: bool, thread_id: u32) {
+    let client = Client::new();
+
+    let res = client
+        .post(URL)
+        .header(CONTENT_TYPE, "application/json")
+        .body(json)
+        .send();
 }
 
 #[cfg(test)]
@@ -158,7 +211,7 @@ mod tests {
         let req_scheduler = RequestSchedulerBuilder::default()
             .with_num_threads(2)
             .with_request_amount(5)
-            .with_time_per_request(Duration::from_secs(1))
+            .with_time_per_request(&Duration::from_secs(1))
             // .with_total_time(Duration::from_secs(1))
             .build();
 
