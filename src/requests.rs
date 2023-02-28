@@ -145,7 +145,7 @@ pub fn send_data(req_scheduler: RequestScheduler, json: String, debug: bool) {
     if req_scheduler.num_threads == 1 {
         debug!("num_threads is set to 1, use current thread.");
 
-        send_data_internal(req_scheduler, json, debug, 0);
+        send_data_internal(req_scheduler, json, debug, 0, Client::new());
         return;
     }
 
@@ -154,7 +154,7 @@ pub fn send_data(req_scheduler: RequestScheduler, json: String, debug: bool) {
     let handles = (0..req_scheduler.num_threads)
         .map(|thread_id| {
             let json_clone = json.clone();
-            thread::spawn(move || send_data_internal(req_scheduler, json_clone, debug, thread_id))
+            thread::spawn(move || send_data_internal(req_scheduler, json_clone, debug, thread_id, Client::new()))
         })
         .collect::<Vec<_>>();
 
@@ -165,7 +165,7 @@ pub fn send_data(req_scheduler: RequestScheduler, json: String, debug: bool) {
     debug!("Threads joined.");
 }
 
-fn send_data_internal(req_scheduler: RequestScheduler, json: String, debug: bool, thread_id: u32) {
+fn send_data_internal(req_scheduler: RequestScheduler, json: String, debug: bool, thread_id: u32, client: Client) {
     let start = SystemTime::now();
 
     if req_scheduler.loop_indefinitely {
@@ -188,9 +188,7 @@ fn send_data_internal(req_scheduler: RequestScheduler, json: String, debug: bool
 }
 
 // TODO: Currently unused for debugging.
-fn make_request(json: String, debug: bool, thread_id: u32) {
-    let client = Client::new();
-
+fn make_request(json: String, debug: bool, thread_id: u32, client: Client) {
     let res = client
         .post(URL)
         .header(CONTENT_TYPE, "application/json")
@@ -200,26 +198,9 @@ fn make_request(json: String, debug: bool, thread_id: u32) {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use super::{RequestSchedulerBuilder, MAX_NUM_THREADS};
 
-    use super::{send_data, RequestSchedulerBuilder, MAX_NUM_THREADS};
-
-    // Used for manual testing, will be removed/edited later
-    // cargo t -- send_data_test --nocapture
-    #[test]
-    fn send_data_test() {
-        let req_scheduler = RequestSchedulerBuilder::default()
-            .with_num_threads(2)
-            .with_request_amount(5)
-            .with_time_per_request(&Duration::from_secs(1))
-            // .with_total_time(Duration::from_secs(1))
-            .build();
-
-        assert!(req_scheduler.is_ok());
-        let req_scheduler = req_scheduler.unwrap();
-
-        send_data(req_scheduler, "{}".to_owned(), true);
-    }
+    // TODO: Add some tests for the parameter logic.
 
     #[test]
     fn test_invalid_num_threads_low() {
