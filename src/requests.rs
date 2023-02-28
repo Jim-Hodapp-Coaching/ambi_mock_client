@@ -154,7 +154,9 @@ pub fn send_data(req_scheduler: RequestScheduler, json: String, debug: bool) {
     let handles = (0..req_scheduler.num_threads)
         .map(|thread_id| {
             let json_clone = json.clone();
-            thread::spawn(move || send_data_internal(req_scheduler, json_clone, debug, thread_id, Client::new()))
+            thread::spawn(move || {
+                send_data_internal(req_scheduler, json_clone, debug, thread_id, Client::new())
+            })
         })
         .collect::<Vec<_>>();
 
@@ -165,20 +167,26 @@ pub fn send_data(req_scheduler: RequestScheduler, json: String, debug: bool) {
     debug!("Threads joined.");
 }
 
-fn send_data_internal(req_scheduler: RequestScheduler, json: String, debug: bool, thread_id: u32, client: Client) {
+fn send_data_internal(
+    req_scheduler: RequestScheduler,
+    json: String,
+    debug: bool,
+    thread_id: u32,
+    client: Client,
+) {
     let start = SystemTime::now();
 
     if req_scheduler.loop_indefinitely {
         loop {
             info!("[Thread {}]: {:?}", thread_id, SystemTime::elapsed(&start));
-            // make_request(json.clone(), debug, thread_id);
+            // make_request(json.clone(), debug, thread_id, &client);
             thread::sleep(req_scheduler.time_per_request)
         }
     }
 
     for i in 0..req_scheduler.request_amount {
         info!("[Thread {}]: {:?}", thread_id, SystemTime::elapsed(&start));
-        // make_request(json.clone(), debug, thread_id);
+        // make_request(json.clone(), debug, thread_id, &client);
 
         // Only use thread.sleep if we are not on the last request
         if i != req_scheduler.request_amount - 1 {
@@ -188,7 +196,7 @@ fn send_data_internal(req_scheduler: RequestScheduler, json: String, debug: bool
 }
 
 // TODO: Currently unused for debugging.
-fn make_request(json: String, debug: bool, thread_id: u32, client: Client) {
+fn make_request(json: String, debug: bool, thread_id: u32, client: &Client) {
     let res = client
         .post(URL)
         .header(CONTENT_TYPE, "application/json")
