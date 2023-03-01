@@ -34,12 +34,19 @@ pub struct Cli {
     /// Turns verbose console debug output on
     #[arg(short, long)]
     pub debug: bool,
+    /// The amount of requests to make
+    /// [DEFAULT: 1]
     #[arg(short = 'n', long)]
     pub request_amount: Option<u32>,
+    /// The time between each request (in seconds)
+    /// [DEFAULT: 10]
     #[arg(short = 't', long = "time-per-request")]
     pub time_per_request_s: Option<u64>,
+    /// The total time over which all the requests must be sent (in seconds, alternative to -t)
     #[arg(short = 'T', long = "total-time")]
     pub total_time_s: Option<u64>,
+    /// The number of threads to spawn. The workload will be cloned to each thread, not divided
+    /// [DEFAULT: 1]
     #[arg(short = 'p', long)]
     pub num_threads: Option<u32>,
 }
