@@ -10,7 +10,7 @@
 //!
 
 mod data;
-mod error;
+pub mod error;
 mod requests;
 
 use crate::requests::{send_data, RequestSchedulerBuilder};

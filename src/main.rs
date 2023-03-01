@@ -10,16 +10,17 @@
 //! See the `LICENSE` file for Copyright and license details.
 //!
 
+use ambi_mock_client::error::RequestSchedulerError;
 use clap::Parser;
 use log::LevelFilter;
 
-fn main() {
+fn main() -> Result<(), RequestSchedulerError> {
     // Parses the provided command line interface arguments and flags
     let cli = ambi_mock_client::Cli::parse();
 
     init_logging(cli.debug);
 
-    let _ = ambi_mock_client::run(&cli);
+    ambi_mock_client::run(&cli)
 }
 
 fn init_logging(is_debug: bool) {
