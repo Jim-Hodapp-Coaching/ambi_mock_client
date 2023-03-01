@@ -51,8 +51,6 @@ pub struct Cli {
     pub total_time_s: Option<u64>,
     #[arg(short = 'p', long)]
     pub num_threads: Option<u32>,
-    #[arg(short = 'l', long, action)]
-    pub loop_indefinitely: bool,
 }
 
 pub fn run(cli: &Cli) -> Result<(), RequestSchedulerError> {
@@ -63,7 +61,6 @@ pub fn run(cli: &Cli) -> Result<(), RequestSchedulerError> {
         .with_some_time_per_request(&cli.time_per_request_s.map(Duration::from_secs))
         .with_some_total_time(&cli.total_time_s.map(Duration::from_secs))
         .with_some_num_threads(&cli.num_threads)
-        .with_loop_indefinitely(cli.loop_indefinitely)
         .build()?;
 
     let dust_concentration = random_gen_dust_concentration();

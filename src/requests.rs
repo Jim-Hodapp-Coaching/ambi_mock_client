@@ -22,7 +22,6 @@ pub struct RequestSchedulerBuilder {
     time_per_request: Option<Duration>,
     total_time: Option<Duration>,
     num_threads: Option<u32>,
-    loop_indefinitely: Option<bool>,
 }
 
 impl RequestSchedulerBuilder {
@@ -32,7 +31,6 @@ impl RequestSchedulerBuilder {
             time_per_request: None,
             total_time: None,
             num_threads: None,
-            loop_indefinitely: None,
         }
     }
 
@@ -76,19 +74,9 @@ impl RequestSchedulerBuilder {
         self
     }
 
-    pub fn with_loop_indefinitely(mut self, loop_indefinitely: bool) -> Self {
-        self.loop_indefinitely = Some(loop_indefinitely);
-        self
-    }
-
-    pub fn with_some_loop_indefinitely(mut self, loop_indefinitely: &Option<bool>) -> Self {
-        self.loop_indefinitely = *loop_indefinitely;
-        self
-    }
-
     pub fn build(self) -> Result<RequestScheduler, RequestSchedulerError> {
-        // Determine to loop indefinitely
-        let loop_indefinitely = self.loop_indefinitely.unwrap_or(false);
+        // Loop indefinitely if no req amt is set. If time per req is also not set then don't loop.
+        let loop_indefinitely = self.request_amount.is_none() && self.time_per_request.is_some();
 
         let request_amount = self.request_amount.unwrap_or(DEFAULT_REQUEST_AMOUNT);
 
