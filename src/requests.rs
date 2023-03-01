@@ -1,15 +1,16 @@
-// TODO: Remove this
-#![allow(dead_code, unused_variables)]
+use std::{thread, time::Duration};
 
-use std::{
-    thread,
-    time::{Duration, SystemTime},
-};
-
-use log::{debug, info};
+use log::{debug, error, info};
 use reqwest::{blocking::Client, header::CONTENT_TYPE};
 
-use crate::{error::RequestSchedulerError, URL};
+use crate::{
+    data::{
+        random_gen_dust_concentration, random_gen_humidity, random_gen_pressure,
+        random_gen_temperature, AirPurity, Reading,
+    },
+    error::RequestSchedulerError,
+    URL,
+};
 
 const DEFAULT_REQUEST_AMOUNT: u32 = 1;
 const DEFAULT_TIME_PER_REQUEST: Duration = Duration::from_secs(10);
@@ -34,18 +35,8 @@ impl RequestSchedulerBuilder {
         }
     }
 
-    pub fn with_request_amount(mut self, request_amount: u32) -> Self {
-        self.request_amount = Some(request_amount);
-        self
-    }
-
     pub fn with_some_request_amount(mut self, request_amount: &Option<u32>) -> Self {
         self.request_amount = *request_amount;
-        self
-    }
-
-    pub fn with_time_per_request(mut self, time_per_request: &Duration) -> Self {
-        self.time_per_request = Some(*time_per_request);
         self
     }
 
@@ -54,18 +45,8 @@ impl RequestSchedulerBuilder {
         self
     }
 
-    pub fn with_total_time(mut self, total_time: &Duration) -> Self {
-        self.total_time = Some(*total_time);
-        self
-    }
-
     pub fn with_some_total_time(mut self, total_time: &Option<Duration>) -> Self {
         self.total_time = *total_time;
-        self
-    }
-
-    pub fn with_num_threads(mut self, num_threads: u32) -> Self {
-        self.num_threads = Some(num_threads);
         self
     }
 
@@ -128,12 +109,12 @@ pub struct RequestScheduler {
     loop_indefinitely: bool,
 }
 
-pub fn send_data(req_scheduler: RequestScheduler, json: String, debug: bool) {
+pub fn send_data(req_scheduler: RequestScheduler) {
     // If 1 thread is specified, we can use the current thread.
     if req_scheduler.num_threads == 1 {
         debug!("num_threads is set to 1, use current thread.");
 
-        send_data_internal(req_scheduler, json, debug, 0, Client::new());
+        send_data_internal(req_scheduler, 0, Client::new());
         return;
     }
 
@@ -141,10 +122,7 @@ pub fn send_data(req_scheduler: RequestScheduler, json: String, debug: bool) {
 
     let handles = (0..req_scheduler.num_threads)
         .map(|thread_id| {
-            let json_clone = json.clone();
-            thread::spawn(move || {
-                send_data_internal(req_scheduler, json_clone, debug, thread_id, Client::new())
-            })
+            thread::spawn(move || send_data_internal(req_scheduler, thread_id, Client::new()))
         })
         .collect::<Vec<_>>();
 
@@ -155,26 +133,20 @@ pub fn send_data(req_scheduler: RequestScheduler, json: String, debug: bool) {
     debug!("Threads joined.");
 }
 
-fn send_data_internal(
-    req_scheduler: RequestScheduler,
-    json: String,
-    debug: bool,
-    thread_id: u32,
-    client: Client,
-) {
-    let start = SystemTime::now();
-
+/// This code might run on separate threads, any logs should be prefixed by the thread id
+/// for easier debugging.
+///
+/// You can log the thread id by prepending `[Thread {thread_id}]: ` to your logs.
+fn send_data_internal(req_scheduler: RequestScheduler, thread_id: u32, client: Client) {
     if req_scheduler.loop_indefinitely {
         loop {
-            info!("[Thread {}]: {:?}", thread_id, SystemTime::elapsed(&start));
-            // make_request(json.clone(), debug, thread_id, &client);
+            make_request(thread_id, &client);
             thread::sleep(req_scheduler.time_per_request)
         }
     }
 
     for i in 0..req_scheduler.request_amount {
-        info!("[Thread {}]: {:?}", thread_id, SystemTime::elapsed(&start));
-        // make_request(json.clone(), debug, thread_id, &client);
+        make_request(thread_id, &client);
 
         // Only use thread.sleep if we are not on the last request
         if i != req_scheduler.request_amount - 1 {
@@ -183,13 +155,59 @@ fn send_data_internal(
     }
 }
 
-// TODO: Currently unused for debugging.
-fn make_request(json: String, debug: bool, thread_id: u32, client: &Client) {
+/// This also can run in parallel, refer to [`send_data_internal`].
+fn make_request(thread_id: u32, client: &Client) {
+    let json = generate_random_reading();
+    info!("[Thread {thread_id}]: Sending POST request to {}", URL);
+    debug!("[Thread {thread_id}]: Request JSON: {}", json);
+
     let res = client
         .post(URL)
         .header(CONTENT_TYPE, "application/json")
         .body(json)
         .send();
+
+    match res {
+        Ok(response) => {
+            info!(
+                "[Thread {thread_id}]: Response from Ambi backend: {}",
+                response.status().as_str()
+            );
+            debug!(
+                "[Thread {thread_id}]: Response from Ambi backend: {:#?}",
+                response
+            );
+        }
+        Err(e) => {
+            if e.is_request() {
+                error!("[Thread {thread_id}]: Response error from Ambi backend: request error");
+            } else if e.is_timeout() {
+                error!("[Thread {thread_id}]: Response error from Ambi backend: request timed out");
+            } else {
+                error!("[Thread {thread_id}]: Response error from Ambi backend: specific error type unknown");
+            }
+
+            debug!("[Thread {thread_id}]: {}", e.to_string());
+            debug!(
+                "[Thread {thread_id}]: Response error from Ambi backend: {:?}",
+                e
+            );
+        }
+    }
+}
+
+fn generate_random_reading() -> String {
+    let dust_concentration = random_gen_dust_concentration();
+    let air_purity = AirPurity::from_value(dust_concentration).to_string();
+    let reading = Reading::new(
+        random_gen_temperature(),
+        random_gen_humidity(),
+        random_gen_pressure(),
+        dust_concentration,
+        air_purity,
+    );
+
+    serde_json::to_string(&reading).unwrap()
 }
 
 #[cfg(test)]
@@ -201,7 +219,7 @@ mod tests {
     #[test]
     fn test_invalid_num_threads_low() {
         let req_scheduler = RequestSchedulerBuilder::default()
-            .with_num_threads(0)
+            .with_some_num_threads(&Some(0))
             .build();
 
         assert!(req_scheduler.is_err())
@@ -210,7 +228,7 @@ mod tests {
     #[test]
     fn test_invalid_num_threads_high() {
         let req_scheduler = RequestSchedulerBuilder::default()
-            .with_num_threads(MAX_NUM_THREADS + 1)
+            .with_some_num_threads(&Some(MAX_NUM_THREADS + 1))
             .build();
 
         assert!(req_scheduler.is_err())

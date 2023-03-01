@@ -13,20 +13,11 @@ mod data;
 mod error;
 mod requests;
 
-use std::time::Duration;
-
-use crate::data::{
-    random_gen_dust_concentration, random_gen_humidity, random_gen_pressure, random_gen_temperature,
-};
-use crate::{
-    data::Reading,
-    requests::{send_data, RequestSchedulerBuilder},
-};
+use crate::requests::{send_data, RequestSchedulerBuilder};
 use clap::Parser;
 use error::RequestSchedulerError;
 use log::debug;
-
-use crate::data::AirPurity;
+use std::time::Duration;
 
 const URL: &str = "http://localhost:8000/api/readings/add";
 
@@ -63,51 +54,9 @@ pub fn run(cli: &Cli) -> Result<(), RequestSchedulerError> {
         .with_some_num_threads(&cli.num_threads)
         .build()?;
 
-    let dust_concentration = random_gen_dust_concentration();
-    let air_purity = AirPurity::from_value(dust_concentration).to_string();
-    let reading = Reading::new(
-        random_gen_temperature(),
-        random_gen_humidity(),
-        random_gen_pressure(),
-        dust_concentration,
-        air_purity,
-    );
-
-    let json = serde_json::to_string(&reading).unwrap();
-
-    send_data(req_scheduler, json, cli.debug);
+    send_data(req_scheduler);
 
     Ok(())
-
-    // TODO: Move these logs to the requests file
-    // info!("Sending POST request to {}", URL);
-    // debug!("Request JSON: {}", json);
-    //
-    // let client = Client::new();
-    // let res = client
-    //     .post(URL)
-    //     .header(CONTENT_TYPE, "application/json")
-    //     .body(json)
-    //     .send();
-
-    // match res {
-    //     Ok(response) => {
-    //         info!("Response from Ambi backend: {}", response.status().as_str());
-    //         debug!("Response from Ambi backend: {:#?}", response);
-    //     }
-    //     Err(e) => {
-    //         if e.is_request() {
-    //             error!("Response error from Ambi backend: request error");
-    //         } else if e.is_timeout() {
-    //             error!("Response error from Ambi backend: request timed out");
-    //         } else {
-    //             error!("Response error from Ambi backend: specific error type unknown");
-    //         }
-
-    //         debug!("{}", e.to_string());
-    //         debug!("Response error from Ambi backend: {:?}", e);
-    //     }
-    // }
 }
 
 #[cfg(test)]
