@@ -1,6 +1,7 @@
 use std::{thread, time::Duration};
 
 use log::{debug, error, info};
+use rand::rngs::ThreadRng;
 use reqwest::{blocking::Client, header::CONTENT_TYPE};
 
 use crate::{
@@ -15,7 +16,7 @@ use crate::{
 const DEFAULT_REQUEST_AMOUNT: u32 = 1;
 const DEFAULT_TIME_PER_REQUEST: Duration = Duration::from_secs(10);
 const DEFAULT_NUM_THREADS: u32 = 1;
-const MAX_NUM_THREADS: u32 = 10;
+pub const MAX_NUM_THREADS: u32 = 10;
 
 #[derive(Clone, Copy)]
 pub struct RequestSchedulerBuilder {
@@ -68,29 +69,9 @@ impl RequestSchedulerBuilder {
             (Some(time_per_request), Some(_)) => *time_per_request,
         };
 
-        let num_threads = match self.num_threads {
-            Some(num_threads) => num_threads,
-            None => DEFAULT_NUM_THREADS,
-        };
-
-        // Make sure that the number of threads is in [1, `MAX_NUM_THREADS`].
-        match num_threads {
-            0 => {
-                return Err(RequestSchedulerError::InvalidArgument {
-                    argument_name: "num_threads".to_owned(),
-                    value: "0".to_owned(),
-                    message: "You must use at least 1 thread.".to_owned(),
-                })
-            }
-            1..=MAX_NUM_THREADS => (),
-            _ => {
-                return Err(RequestSchedulerError::InvalidArgument {
-                    argument_name: "num_threads".to_owned(),
-                    value: format!("{num_threads}"),
-                    message: format!("You can't use more than {MAX_NUM_THREADS} threads."),
-                })
-            }
-        }
+        let num_threads = self.num_threads.unwrap_or(DEFAULT_NUM_THREADS);
+        // At this point we know that the number of threads is in [1, `MAX_NUM_THREADS`].
+        // Validation is done in `lib::is_valid_num_of_threads`.
 
         Ok(RequestScheduler {
             request_amount,
@@ -114,7 +95,7 @@ pub fn send_data(req_scheduler: RequestScheduler) {
     if req_scheduler.num_threads == 1 {
         debug!("num_threads is set to 1, use current thread.");
 
-        send_data_internal(req_scheduler, 0, Client::new());
+        send_data_internal(req_scheduler, 0, Client::new(), &mut rand::thread_rng());
         return;
     }
 
@@ -122,7 +103,14 @@ pub fn send_data(req_scheduler: RequestScheduler) {
 
     let handles = (0..req_scheduler.num_threads)
         .map(|thread_id| {
-            thread::spawn(move || send_data_internal(req_scheduler, thread_id, Client::new()))
+            thread::spawn(move || {
+                send_data_internal(
+                    req_scheduler,
+                    thread_id,
+                    Client::new(),
+                    &mut rand::thread_rng(),
+                )
+            })
         })
         .collect::<Vec<_>>();
 
@@ -137,16 +125,21 @@ pub fn send_data(req_scheduler: RequestScheduler) {
 /// for easier debugging.
 ///
 /// You can log the thread id by prepending `[Thread {thread_id}]: ` to your logs.
-fn send_data_internal(req_scheduler: RequestScheduler, thread_id: u32, client: Client) {
+fn send_data_internal(
+    req_scheduler: RequestScheduler,
+    thread_id: u32,
+    client: Client,
+    rng: &mut ThreadRng,
+) {
     if req_scheduler.loop_indefinitely {
         loop {
-            make_request(thread_id, &client);
+            make_request(thread_id, &client, rng);
             thread::sleep(req_scheduler.time_per_request)
         }
     }
 
     for i in 0..req_scheduler.request_amount {
-        make_request(thread_id, &client);
+        make_request(thread_id, &client, rng);
 
         // Only use thread.sleep if we are not on the last request
         if i != req_scheduler.request_amount - 1 {
@@ -156,8 +149,8 @@ fn send_data_internal(req_scheduler: RequestScheduler, thread_id: u32, client: C
 }
 
 /// This also can run in parallel, refer to [`send_data_internal`].
-fn make_request(thread_id: u32, client: &Client) {
-    let json = generate_random_reading();
+fn make_request(thread_id: u32, client: &Client, rng: &mut ThreadRng) {
+    let json = generate_random_reading(rng);
     info!("[Thread {thread_id}]: Sending POST request to {}", URL);
     debug!("[Thread {thread_id}]: Request JSON: {}", json);
 
@@ -196,13 +189,13 @@ fn make_request(thread_id: u32, client: &Client) {
     }
 }
 
-fn generate_random_reading() -> String {
-    let dust_concentration = random_gen_dust_concentration();
+fn generate_random_reading(rng: &mut ThreadRng) -> String {
+    let dust_concentration = random_gen_dust_concentration(rng);
     let air_purity = AirPurity::from_value(dust_concentration).to_string();
     let reading = Reading::new(
-        random_gen_temperature(),
-        random_gen_humidity(),
-        random_gen_pressure(),
+        random_gen_temperature(rng),
+        random_gen_humidity(rng),
+        random_gen_pressure(rng),
         dust_concentration,
         air_purity,
     );

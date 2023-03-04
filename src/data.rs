@@ -1,6 +1,6 @@
 use core::fmt;
 
-use rand::{thread_rng, Rng};
+use rand::{rngs::ThreadRng, Rng};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -41,7 +41,7 @@ pub(crate) enum AirPurity {
 impl AirPurity {
     pub(crate) fn from_value(value: f64) -> AirPurity {
         match value {
-            value if (f64::MIN..=50.0).contains(&value) => AirPurity::FreshAir,
+            value if value < 50.0 => AirPurity::FreshAir,
             value if value > 50.0 && value <= 100.0 => AirPurity::Low,
             value if value > 100.0 && value <= 150.0 => AirPurity::High,
             _ => AirPurity::Dangerous,
@@ -62,27 +62,23 @@ impl fmt::Display for AirPurity {
     }
 }
 
-pub(crate) fn random_gen_humidity() -> f64 {
-    let mut rng = thread_rng();
+pub(crate) fn random_gen_humidity(rng: &mut ThreadRng) -> f64 {
     let value = rng.gen_range(0.0..=100.0);
     // Limit to 2 decimals
     f64::trunc(value * 100.0) / 100.0
 }
 
-pub(crate) fn random_gen_temperature() -> f64 {
-    let mut rng = thread_rng();
+pub(crate) fn random_gen_temperature(rng: &mut ThreadRng) -> f64 {
     let value = rng.gen_range(15.0..=35.0);
     // Limit to 2 decimals
     f64::trunc(value * 100.0) / 100.0
 }
 
-pub(crate) fn random_gen_pressure() -> i32 {
-    let mut rng = thread_rng();
+pub(crate) fn random_gen_pressure(rng: &mut ThreadRng) -> i32 {
     rng.gen_range(900..=1100)
 }
 
-pub(crate) fn random_gen_dust_concentration() -> f64 {
-    let mut rng = thread_rng();
+pub(crate) fn random_gen_dust_concentration(rng: &mut ThreadRng) -> f64 {
     let value = rng.gen_range(0.0..=1000.0);
     f64::trunc(value * 100.0) / 100.0
 }
@@ -93,7 +89,7 @@ mod tests {
 
     #[test]
     fn air_purity_from_value_returns_correct_enum() {
-        let mut rng = thread_rng();
+        let mut rng = rand::thread_rng();
         let fresh_air = rng.gen_range(0.0..=50.0);
         let low = rng.gen_range(51.0..=100.0);
         let high = rng.gen_range(101.0..=150.0);
