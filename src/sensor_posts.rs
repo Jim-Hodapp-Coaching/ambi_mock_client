@@ -162,14 +162,14 @@ fn make_post(thread_id: u32, client: &Client, rng: &mut ThreadRng) {
 
     match res {
         Ok(response) => {
-            let info_msg = format!(
+            let response_format_str = format!(
                 "[Thread {thread_id}]: Response from Ambi backend: {}",
                 response.status().as_str()
             );
 
             match response.status().is_success() {
-                true => info!("{}", info_msg),
-                false => error!("{}", info_msg),
+                true => info!("{}", response_format_str),
+                false => error!("{}", response_format_str),
             }
 
             debug!(
