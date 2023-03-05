@@ -11,13 +11,13 @@
 
 mod data;
 pub mod error;
-mod requests;
+mod sensor_posts;
 
-use crate::requests::{send_data, PostSchedulerBuilder};
+use crate::sensor_posts::{send_data, PostSchedulerBuilder};
 use clap::Parser;
 use error::PostSchedulerError;
 use log::debug;
-use requests::MAX_NUM_THREADS;
+use sensor_posts::MAX_NUM_THREADS;
 use std::time::Duration;
 
 const URL: &str = "http://localhost:8000/api/readings/add";
@@ -38,11 +38,11 @@ pub struct Cli {
     /// The number of sensor readings to post.
     /// [DEFAULT: 1]
     #[arg(short = 'n', long)]
-    pub request_amount: Option<u32>,
+    pub post_amount: Option<u32>,
     /// The time between each sensor reading post (in seconds).
     /// [DEFAULT: 10]
-    #[arg(short = 't', long = "time-per-request")]
-    pub time_per_request_s: Option<u64>,
+    #[arg(short = 't', long = "time-per-post")]
+    pub time_per_post_s: Option<u64>,
     /// The total time over which all the sensor reading posts must be sent (in seconds, alternative to -t).
     #[arg(short = 'T', long = "total-time")]
     pub total_time_s: Option<u64>,
@@ -70,8 +70,8 @@ pub fn run(cli: &Cli) -> Result<(), PostSchedulerError> {
     debug!("cli: {cli:?}");
 
     let req_scheduler = PostSchedulerBuilder::default()
-        .with_some_request_amount(&cli.request_amount)
-        .with_some_time_per_request(&cli.time_per_request_s.map(Duration::from_secs))
+        .with_some_post_amount(&cli.post_amount)
+        .with_some_time_per_post(&cli.time_per_post_s.map(Duration::from_secs))
         .with_some_total_time(&cli.total_time_s.map(Duration::from_secs))
         .with_some_num_threads(&cli.num_threads)
         .build()?;

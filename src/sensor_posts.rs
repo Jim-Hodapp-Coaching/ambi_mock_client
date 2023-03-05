@@ -13,15 +13,15 @@ use crate::{
     URL,
 };
 
-const DEFAULT_REQUEST_AMOUNT: u32 = 1;
-const DEFAULT_TIME_PER_REQUEST: Duration = Duration::from_secs(10);
+const DEFAULT_POST_AMOUNT: u32 = 1;
+const DEFAULT_TIME_PER_POST: Duration = Duration::from_secs(10);
 const DEFAULT_NUM_THREADS: u32 = 1;
 pub const MAX_NUM_THREADS: u32 = 10;
 
 #[derive(Clone, Copy)]
 pub struct PostSchedulerBuilder {
-    request_amount: Option<u32>,
-    time_per_request: Option<Duration>,
+    post_amount: Option<u32>,
+    time_per_post: Option<Duration>,
     total_time: Option<Duration>,
     num_threads: Option<u32>,
 }
@@ -29,20 +29,20 @@ pub struct PostSchedulerBuilder {
 impl PostSchedulerBuilder {
     pub fn default() -> Self {
         PostSchedulerBuilder {
-            request_amount: None,
-            time_per_request: None,
+            post_amount: None,
+            time_per_post: None,
             total_time: None,
             num_threads: None,
         }
     }
 
-    pub fn with_some_request_amount(mut self, request_amount: &Option<u32>) -> Self {
-        self.request_amount = *request_amount;
+    pub fn with_some_post_amount(mut self, post_amount: &Option<u32>) -> Self {
+        self.post_amount = *post_amount;
         self
     }
 
-    pub fn with_some_time_per_request(mut self, time_per_request: &Option<Duration>) -> Self {
-        self.time_per_request = *time_per_request;
+    pub fn with_some_time_per_post(mut self, time_per_post: &Option<Duration>) -> Self {
+        self.time_per_post = *time_per_post;
         self
     }
 
@@ -58,15 +58,15 @@ impl PostSchedulerBuilder {
 
     pub fn build(self) -> Result<PostScheduler, PostSchedulerError> {
         // Loop indefinitely if no req amt is set. If time per req is also not set then don't loop.
-        let loop_indefinitely = self.request_amount.is_none() && self.time_per_request.is_some();
+        let loop_indefinitely = self.post_amount.is_none() && self.time_per_post.is_some();
 
-        let request_amount = self.request_amount.unwrap_or(DEFAULT_REQUEST_AMOUNT);
+        let post_amount = self.post_amount.unwrap_or(DEFAULT_POST_AMOUNT);
 
-        let time_per_request = match (&self.time_per_request, &self.total_time) {
-            (None, None) => DEFAULT_TIME_PER_REQUEST,
-            (None, Some(total_time)) => *total_time / request_amount,
-            (Some(time_per_request), None) => *time_per_request,
-            (Some(time_per_request), Some(_)) => *time_per_request,
+        let time_per_post = match (&self.time_per_post, &self.total_time) {
+            (None, None) => DEFAULT_TIME_PER_POST,
+            (None, Some(total_time)) => *total_time / post_amount,
+            (Some(time_per_post), None) => *time_per_post,
+            (Some(time_per_post), Some(_)) => *time_per_post,
         };
 
         let num_threads = self.num_threads.unwrap_or(DEFAULT_NUM_THREADS);
@@ -74,8 +74,8 @@ impl PostSchedulerBuilder {
         // Validation is done in `lib::is_valid_num_of_threads`.
 
         Ok(PostScheduler {
-            request_amount,
-            time_per_request,
+            post_amount,
+            time_per_post,
             num_threads,
             loop_indefinitely,
         })
@@ -84,8 +84,8 @@ impl PostSchedulerBuilder {
 
 #[derive(Clone, Copy)]
 pub struct PostScheduler {
-    request_amount: u32,
-    time_per_request: Duration,
+    post_amount: u32,
+    time_per_post: Duration,
     num_threads: u32,
     loop_indefinitely: bool,
 }
@@ -133,26 +133,26 @@ fn send_data_internal(
 ) {
     if req_scheduler.loop_indefinitely {
         loop {
-            make_request(thread_id, &client, rng);
-            thread::sleep(req_scheduler.time_per_request)
+            make_post(thread_id, &client, rng);
+            thread::sleep(req_scheduler.time_per_post)
         }
     }
 
-    for i in 0..req_scheduler.request_amount {
-        make_request(thread_id, &client, rng);
+    for i in 0..req_scheduler.post_amount {
+        make_post(thread_id, &client, rng);
 
         // Only use thread.sleep if we are not on the last request
-        if i != req_scheduler.request_amount - 1 {
-            thread::sleep(req_scheduler.time_per_request)
+        if i != req_scheduler.post_amount - 1 {
+            thread::sleep(req_scheduler.time_per_post)
         }
     }
 }
 
 /// This also can run in parallel, refer to [`send_data_internal`].
-fn make_request(thread_id: u32, client: &Client, rng: &mut ThreadRng) {
+fn make_post(thread_id: u32, client: &Client, rng: &mut ThreadRng) {
     let json = generate_random_reading(rng);
     info!("[Thread {thread_id}]: Sending POST request to {}", URL);
-    debug!("[Thread {thread_id}]: Request JSON: {}", json);
+    debug!("[Thread {thread_id}]: Post JSON: {}", json);
 
     let res = client
         .post(URL)
@@ -162,10 +162,16 @@ fn make_request(thread_id: u32, client: &Client, rng: &mut ThreadRng) {
 
     match res {
         Ok(response) => {
-            info!(
+            let info_msg = format!(
                 "[Thread {thread_id}]: Response from Ambi backend: {}",
                 response.status().as_str()
             );
+
+            match response.status().is_success() {
+                true => info!("{}", info_msg),
+                false => error!("{}", info_msg),
+            }
+
             debug!(
                 "[Thread {thread_id}]: Response from Ambi backend: {:#?}",
                 response
