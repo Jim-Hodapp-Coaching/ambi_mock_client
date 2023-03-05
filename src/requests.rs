@@ -9,7 +9,7 @@ use crate::{
         random_gen_dust_concentration, random_gen_humidity, random_gen_pressure,
         random_gen_temperature, AirPurity, Reading,
     },
-    error::RequestSchedulerError,
+    error::PostSchedulerError,
     URL,
 };
 
@@ -19,16 +19,16 @@ const DEFAULT_NUM_THREADS: u32 = 1;
 pub const MAX_NUM_THREADS: u32 = 10;
 
 #[derive(Clone, Copy)]
-pub struct RequestSchedulerBuilder {
+pub struct PostSchedulerBuilder {
     request_amount: Option<u32>,
     time_per_request: Option<Duration>,
     total_time: Option<Duration>,
     num_threads: Option<u32>,
 }
 
-impl RequestSchedulerBuilder {
+impl PostSchedulerBuilder {
     pub fn default() -> Self {
-        RequestSchedulerBuilder {
+        PostSchedulerBuilder {
             request_amount: None,
             time_per_request: None,
             total_time: None,
@@ -56,7 +56,7 @@ impl RequestSchedulerBuilder {
         self
     }
 
-    pub fn build(self) -> Result<RequestScheduler, RequestSchedulerError> {
+    pub fn build(self) -> Result<PostScheduler, PostSchedulerError> {
         // Loop indefinitely if no req amt is set. If time per req is also not set then don't loop.
         let loop_indefinitely = self.request_amount.is_none() && self.time_per_request.is_some();
 
@@ -73,7 +73,7 @@ impl RequestSchedulerBuilder {
         // At this point we know that the number of threads is in [1, `MAX_NUM_THREADS`].
         // Validation is done in `lib::is_valid_num_of_threads`.
 
-        Ok(RequestScheduler {
+        Ok(PostScheduler {
             request_amount,
             time_per_request,
             num_threads,
@@ -83,14 +83,14 @@ impl RequestSchedulerBuilder {
 }
 
 #[derive(Clone, Copy)]
-pub struct RequestScheduler {
+pub struct PostScheduler {
     request_amount: u32,
     time_per_request: Duration,
     num_threads: u32,
     loop_indefinitely: bool,
 }
 
-pub fn send_data(req_scheduler: RequestScheduler) {
+pub fn send_data(req_scheduler: PostScheduler) {
     // If 1 thread is specified, we can use the current thread.
     if req_scheduler.num_threads == 1 {
         debug!("num_threads is set to 1, use current thread.");
@@ -126,7 +126,7 @@ pub fn send_data(req_scheduler: RequestScheduler) {
 ///
 /// You can log the thread id by prepending `[Thread {thread_id}]: ` to your logs.
 fn send_data_internal(
-    req_scheduler: RequestScheduler,
+    req_scheduler: PostScheduler,
     thread_id: u32,
     client: Client,
     rng: &mut ThreadRng,
@@ -205,13 +205,13 @@ fn generate_random_reading(rng: &mut ThreadRng) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{RequestSchedulerBuilder, MAX_NUM_THREADS};
+    use super::{PostSchedulerBuilder, MAX_NUM_THREADS};
 
     // TODO: Add some tests for the parameter logic.
 
     #[test]
     fn test_invalid_num_threads_low() {
-        let req_scheduler = RequestSchedulerBuilder::default()
+        let req_scheduler = PostSchedulerBuilder::default()
             .with_some_num_threads(&Some(0))
             .build();
 
@@ -220,7 +220,7 @@ mod tests {
 
     #[test]
     fn test_invalid_num_threads_high() {
-        let req_scheduler = RequestSchedulerBuilder::default()
+        let req_scheduler = PostSchedulerBuilder::default()
             .with_some_num_threads(&Some(MAX_NUM_THREADS + 1))
             .build();
 

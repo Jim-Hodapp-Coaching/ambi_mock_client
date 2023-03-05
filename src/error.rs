@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum RequestSchedulerError {
+pub enum PostSchedulerError {
     #[error("Invalid value \"{value}\" for argument {argument_name}. {message}")]
     InvalidArgument {
         argument_name: String,
