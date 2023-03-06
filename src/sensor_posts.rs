@@ -208,28 +208,3 @@ fn generate_random_reading(rng: &mut ThreadRng) -> String {
 
     serde_json::to_string(&reading).unwrap()
 }
-
-#[cfg(test)]
-mod tests {
-    use super::{PostSchedulerBuilder, MAX_NUM_THREADS};
-
-    // TODO: Add some tests for the parameter logic.
-
-    #[test]
-    fn test_invalid_num_threads_low() {
-        let req_scheduler = PostSchedulerBuilder::default()
-            .with_some_num_threads(&Some(0))
-            .build();
-
-        assert!(req_scheduler.is_err())
-    }
-
-    #[test]
-    fn test_invalid_num_threads_high() {
-        let req_scheduler = PostSchedulerBuilder::default()
-            .with_some_num_threads(&Some(MAX_NUM_THREADS + 1))
-            .build();
-
-        assert!(req_scheduler.is_err())
-    }
-}

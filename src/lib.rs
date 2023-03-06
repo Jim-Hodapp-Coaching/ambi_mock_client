@@ -83,12 +83,32 @@ pub fn run(cli: &Cli) -> Result<(), PostSchedulerError> {
 
 #[cfg(test)]
 mod tests {
-    use clap::CommandFactory;
+    use clap::{error::ErrorKind, CommandFactory, Parser};
 
-    use crate::Cli;
+    use crate::{sensor_posts::MAX_NUM_THREADS, Cli};
 
     #[test]
     fn verify_cli() {
         Cli::command().debug_assert();
+    }
+
+    #[test]
+    // #[should_panic]
+    fn test_invalid_num_threads_low() {
+        let cli = Cli::try_parse_from(vec!["", "-p", "0"]);
+        assert!(cli.is_err());
+
+        let cli_err = cli.unwrap_err();
+        assert_eq!(cli_err.kind(), ErrorKind::ValueValidation);
+    }
+
+    #[test]
+    fn test_invalid_num_threads_high() {
+        let num = MAX_NUM_THREADS + 1;
+        let cli = Cli::try_parse_from(vec!["", "-p", &num.to_string()]);
+        assert!(cli.is_err());
+
+        let cli_err = cli.unwrap_err();
+        assert_eq!(cli_err.kind(), ErrorKind::ValueValidation);
     }
 }
