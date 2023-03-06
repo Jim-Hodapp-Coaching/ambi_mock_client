@@ -93,7 +93,6 @@ mod tests {
     }
 
     #[test]
-    // #[should_panic]
     fn test_invalid_num_threads_low() {
         let cli = Cli::try_parse_from(vec!["", "-p", "0"]);
         assert!(cli.is_err());
