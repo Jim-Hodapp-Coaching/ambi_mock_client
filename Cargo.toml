@@ -1,5 +1,7 @@
 [package]
 name = "ambi_mock_client"
+authors = ["Rust Never Sleeps community (https://github.com/Jim-Hodapp-Coaching/)"]
+description = "Provides a mock Ambi client that emulates real sensor hardware such as an Edge client."
 version = "0.1.0"
 edition = "2021"
 
@@ -7,13 +9,16 @@ edition = "2021"
 
 [dependencies]
 rand = "0.8.4"
-reqwest = { version = "0.11.9", features = ["blocking"] }
+reqwest = { version = "0.11.14", features = ["blocking"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.74"
-clap = { version = "3.1.7", features = ["derive"] }
+clap = { version = "4.1.4", features = ["derive"] }
+thiserror = "1.0.38"
+log = "0.4.0"
+env_logger = "0.10.0"
 
 [dev-dependencies]
-regex = "1.5.4"
+regex = "1.7.1"
 
 [lib]
 name = "ambi_mock_client"
