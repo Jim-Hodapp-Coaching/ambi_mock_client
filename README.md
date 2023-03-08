@@ -18,82 +18,46 @@ The ambi_mock_client repository makes use of several Git hooks to ensure that co
 
 This will create symlinks to the Git hooks, preserving any hooks that you may have already configured.
 
-### Using cargo run
-```BASH
-> cargo build
-> cargo run
+## Usage
 
-Sending POST request to http://localhost:4000/api/readings/add as JSON: {"tempurature":"19.2","humidity":"87.7","pressure":"1074","dust_concentration":"415","air_purity":"DANGEROUS"}
-Response: Ok(
-    Response {
-        url: Url {
-            scheme: "http",
-            cannot_be_a_base: false,
-            username: "",
-            password: None,
-            host: Some(
-                Domain(
-                    "localhost",
-                ),
-            ),
-            port: Some(
-                4000,
-            ),
-            path: "/api/readings/add",
-            query: None,
-            fragment: None,
-        },
-        status: 200,
-        headers: {
-            "cache-control": "max-age=0, private, must-revalidate",
-            "content-length": "60",
-            "content-type": "application/json; charset=utf-8",
-            "date": "Sat, 22 Jan 2022 19:25:14 GMT",
-            "server": "Cowboy",
-            "x-request-id": "FsyuNssWKjhYHbUAAAAj",
-        },
-    },
-)
+You can either install this as a CLI tool by running `cargo install --path .` (which is the
+recommended way of using this) or you can run it directly from this repository.
 
-# Or just
+```
+# Installed
+$ ambi_mock_client -h
 
-> cargo run
+# Or not Installed
+$ cargo run -- -h
+
+# Output
+Provides a mock Ambi client that emulates real sensor hardware such as an Edge client.
+
+Usage: ambi_mock_client [OPTIONS]
+
+Options:
+  -d, --debug
+          Turns verbose console debug output on
+  -n, --post-amount <POST_AMOUNT>
+          The number of sensor readings to post. [DEFAULT: 1]
+  -t, --time-per-post <TIME_PER_POST_S>
+          The time between each sensor reading post (in seconds). [DEFAULT: 10]
+  -T, --total-time <TOTAL_TIME_S>
+          The total time over which all the sensor reading posts must be sent (in seconds, alternative to -t)
+  -p, --num-threads <NUM_THREADS>
+          The number of threads to spawn. The workload will be cloned to each thread, not divided. [DEFAULT: 1]
+  -h, --help
+          Print help (see more with '--help')
+  -V, --version
+          Print version
 ```
 
-### As an executable binary
-```BASH
-> cargo build
-> ./target/debug/ambi_mock_client
+Example output:
 
-Sending POST request to http://localhost:4000/api/readings/add as JSON: {"tempurature":"28.8","humidity":"85.2","pressure":"964","dust_concentration":"930","air_purity":"DANGEROUS"}
-Response: Ok(
-    Response {
-        url: Url {
-            scheme: "http",
-            cannot_be_a_base: false,
-            username: "",
-            password: None,
-            host: Some(
-                Domain(
-                    "localhost",
-                ),
-            ),
-            port: Some(
-                4000,
-            ),
-            path: "/api/readings/add",
-            query: None,
-            fragment: None,
-        },
-        status: 200,
-        headers: {
-            "cache-control": "max-age=0, private, must-revalidate",
-            "content-length": "60",
-            "content-type": "application/json; charset=utf-8",
-            "date": "Sat, 22 Jan 2022 19:28:08 GMT",
-            "server": "Cowboy",
-            "x-request-id": "FsyuX1U1NOj9m7IAAABB",
-        },
-    },
-)
+```log
+$ ambi_mock_client -n 1
+
+[2023-03-08T17:39:54Z INFO  ambi_mock_client::sensor_posts] [Thread 0]: Sending POST request to http://localhost:8000/api/readings/add
+
+[2023-03-08T17:39:54Z INFO  ambi_mock_client::sensor_posts] [Thread 0]: Response from Ambi backend: 201
 ```
