@@ -58,6 +58,5 @@ Example output:
 $ ambi_mock_client -n 1
 
 [2023-03-08T17:39:54Z INFO  ambi_mock_client::sensor_posts] [Thread 0]: Sending POST request to http://localhost:8000/api/readings/add
-
 [2023-03-08T17:39:54Z INFO  ambi_mock_client::sensor_posts] [Thread 0]: Response from Ambi backend: 201
 ```
